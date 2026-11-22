@@ -1,0 +1,132 @@
+rules_version = '2';
+
+// Disciply : règles d'accès par rôle.
+// Rôles : admin (responsable général), shepherd (berger de famille), maker (faiseur de disciples).
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() { return request.auth != null; }
+    function me() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    function hasProfile() { return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)); }
+    function active() { return hasProfile() && me().active == true; }
+    function isAdmin() { return active() && me().role == 'admin'; }
+    function isShepherd() { return active() && me().role == 'shepherd'; }
+    function isMaker() { return active() && me().role == 'maker'; }
+    function myFamily() { return me().familyId; }
+    function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function validRole(r) { return r in ['admin', 'shepherd', 'maker']; }
+
+    // ---------- Installation : le tout premier compte devient responsable ----------
+    match /meta/bootstrap {
+      allow get: if true;
+      allow create: if signedIn()
+        && request.resource.data.adminId == request.auth.uid
+        && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---------- Réglages de l'église ----------
+    match /settings/{doc} {
+      allow read: if active();
+      allow write: if isAdmin();
+    }
+
+    // ---------- Familles de disciples ----------
+    match /families/{familyId} {
+      allow read: if active();
+      allow write: if isAdmin();
+    }
+
+    // ---------- Profils des ouvriers ----------
+    match /users/{uid} {
+      allow get: if signedIn() && (request.auth.uid == uid || isAdmin()
+        || (isShepherd() && resource.data.familyId == myFamily()));
+      allow list: if isAdmin() || (isShepherd() && resource.data.familyId == myFamily())
+        || (isMaker() && resource.data.familyId == myFamily());
+
+      // Création de son propre profil : soit le premier responsable (installation),
+      // soit avec une invitation valide qui correspond à son e-mail.
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.active == true
+        && validRole(request.resource.data.role)
+        && (
+          (request.resource.data.role == 'admin'
+            && !exists(/databases/$(database)/documents/meta/bootstrap)
+            && existsAfter(/databases/$(database)/documents/meta/bootstrap))
+          ||
+          (request.resource.data.inviteId is string
+            && inviteOk(request.resource.data.inviteId, request.resource.data))
+        );
+
+      // Le responsable gère tout ; chacun peut changer son nom, son téléphone et son thème.
+      allow update: if isAdmin()
+        || (request.auth.uid == uid && onlyChanges(['name', 'phone', 'theme']));
+      allow delete: if false;
+    }
+
+    function inviteOk(inviteId, data) {
+      let before = get(/databases/$(database)/documents/invitations/$(inviteId)).data;
+      let after = getAfter(/databases/$(database)/documents/invitations/$(inviteId)).data;
+      return before.usedBy == null
+        && after.usedBy == request.auth.uid
+        && before.email.lower() == request.auth.token.email.lower()
+        && before.role == data.role
+        && before.familyId == data.familyId;
+    }
+
+    // ---------- Invitations ----------
+    // Le lien contient un identifiant aléatoire : on peut lire une invitation par son identifiant,
+    // jamais lister les invitations sans être responsable ou berger.
+    match /invitations/{inviteId} {
+      allow get: if true;
+      allow list: if isAdmin() || (isShepherd() && resource.data.familyId == myFamily());
+      allow create: if (isAdmin() && validRole(request.resource.data.role))
+        || (isShepherd() && request.resource.data.role == 'maker' && request.resource.data.familyId == myFamily());
+      allow update: if signedIn()
+        && resource.data.usedBy == null
+        && request.auth.token.email.lower() == resource.data.email.lower()
+        && onlyChanges(['usedBy', 'usedAt'])
+        && request.resource.data.usedBy == request.auth.uid;
+      allow delete: if isAdmin() || (isShepherd() && resource.data.familyId == myFamily() && resource.data.usedBy == null);
+    }
+
+    // ---------- Âmes ----------
+    function canSeeSoul(s) {
+      return isAdmin()
+        || (isShepherd() && s.familyId == myFamily())
+        || (isMaker() && s.makerId == request.auth.uid);
+    }
+
+    match /souls/{soulId} {
+      allow read: if canSeeSoul(resource.data);
+      allow create: if isAdmin()
+        || (isShepherd() && request.resource.data.familyId == myFamily())
+        || (isMaker() && request.resource.data.familyId == myFamily() && request.resource.data.makerId == request.auth.uid);
+      allow update: if isAdmin()
+        || (isShepherd() && resource.data.familyId == myFamily() && request.resource.data.familyId == myFamily())
+        || (isShepherd() && resource.data.familyId == myFamily() && onlyChanges(['familyId', 'makerId', 'updatedAt', 'updatedBy', 'history']))
+        || (isMaker() && resource.data.makerId == request.auth.uid
+            && request.resource.data.makerId == request.auth.uid
+            && request.resource.data.familyId == resource.data.familyId);
+      allow delete: if isAdmin();
+
+      match /notes/{noteId} {
+        allow read: if canSeeSoul(get(/databases/$(database)/documents/souls/$(soulId)).data);
+        allow create: if canSeeSoul(get(/databases/$(database)/documents/souls/$(soulId)).data)
+          && request.resource.data.authorId == request.auth.uid;
+        allow update, delete: if isAdmin() || (signedIn() && resource.data.authorId == request.auth.uid);
+      }
+    }
+
+    // ---------- Présences ----------
+    match /attendances/{attId} {
+      allow read: if isAdmin()
+        || (isShepherd() && resource.data.familyId == myFamily())
+        || (isMaker() && resource.data.makerId == request.auth.uid);
+      allow create, update: if isAdmin()
+        || (isShepherd() && request.resource.data.familyId == myFamily())
+        || (isMaker() && request.resource.data.makerId == request.auth.uid
+            && get(/databases/$(database)/documents/souls/$(request.resource.data.soulId)).data.makerId == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "indexes": [
+    { "collectionGroup": "souls", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "familyId", "order": "ASCENDING" }, { "fieldPath": "state", "order": "ASCENDING" } ] },
+    { "collectionGroup": "souls", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "makerId", "order": "ASCENDING" }, { "fieldPath": "state", "order": "ASCENDING" } ] },
+    { "collectionGroup": "attendances", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "familyId", "order": "ASCENDING" }, { "fieldPath": "date", "order": "ASCENDING" } ] },
+    { "collectionGroup": "attendances", "queryScope": "COLLECTION", "fields": [
+      { "fieldPath": "makerId", "order": "ASCENDING" }, { "fieldPath": "date", "order": "ASCENDING" } ] }
+  ],
+  "fieldOverrides": []
+}
