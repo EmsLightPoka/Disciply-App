@@ -6,7 +6,7 @@ import { stepCount } from "../../lib/souls";
 import { Loading, Top } from "../../components/ui";
 
 export default function Church() {
-  const { settings, families } = useSession();
+  const { settings, families, campus } = useSession();
   const { souls, active, attendance, streak, loading } = useScope();
   if (loading) return <Loading />;
   const sunday = currentSunday();
@@ -24,7 +24,7 @@ export default function Church() {
 
   return (
     <div className="page wide">
-      <Top title="Vue de l'église" sub={settings.churchName} />
+      <Top title="Vue du campus" sub={campus?.name ? `Campus ${campus.name}` : settings.churchName} />
       {families.length === 0 && <div className="hero" style={{ marginBottom: 16 }}>
         <span className="big">Pour commencer, crée les familles de disciples</span>
         <span className="small">Ensuite, invite un berger pour chaque famille. Les bergers inviteront leurs faiseurs.</span>
@@ -48,7 +48,7 @@ export default function Church() {
         <thead><tr><th>Famille</th><th>Âmes</th><th>Sans faiseur</th><th>En alerte</th></tr></thead>
         <tbody>{fam.map(f => <tr key={f.id}><td>{f.name}</td><td>{f.n}</td><td>{f.noMaker}</td><td>{f.alerts}</td></tr>)}</tbody>
       </table></div>
-      <div className="btnrow"><Link className="btn ghost" to="/rapport">Rapport du dimanche</Link><Link className="btn ghost" to="/a-affecter">Âmes à affecter</Link></div>
+      <div className="btnrow"><Link className="btn ghost" to="/rapport-dimanche">Chiffres du dimanche</Link><Link className="btn ghost" to="/a-attribuer">Âmes à attribuer</Link></div>
     </div>
   );
 }

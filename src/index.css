@@ -215,3 +215,18 @@ table.t th, table.t td { text-align: left; padding: 10px 12px; border-bottom: 1p
 table.t th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 500; }
 .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); }
 @media (prefers-reduced-motion: reduce) { .sheet, .toast { animation: none; } .progress b { transition: none; } }
+.bell { position: relative; }
+.badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; border-radius: 9px; background: #FF7203; color: #3F025D; font-size: 11px; font-weight: 600; display: grid; place-items: center; padding: 0 4px; font-family: var(--f-display); }
+.notif.unread { background: var(--accent-soft); }
+.serve { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cal-row { display: grid; grid-template-columns: 120px repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; align-items: start; padding: 12px 14px; }
+.cal-row + .cal-row { border-top: 1px solid var(--line); }
+@media (max-width: 640px) { .cal-row { grid-template-columns: minmax(0, 1fr); } }
+.slot { display: flex; flex-direction: column; gap: 6px; }
+.slot .lbl { font-size: 12px; color: var(--muted); font-weight: 500; }
+.slot select { min-height: 44px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); padding: 0 10px; width: 100%; }
+.pre { white-space: pre-line; font-size: 14px; font-variant-numeric: tabular-nums; }
+.checks { display: flex; flex-wrap: wrap; gap: 6px; }
+.checks button { border: 1px solid var(--line); background: var(--surface); border-radius: 999px; padding: 7px 12px; font-family: var(--f-body); font-weight: 500; font-size: 13px; color: var(--muted); }
+.checks button.started { border-color: var(--warm); color: var(--warm); background: var(--warm-soft); }
+.checks button.done { border-color: var(--ok); color: var(--ok); background: var(--ok-soft); }

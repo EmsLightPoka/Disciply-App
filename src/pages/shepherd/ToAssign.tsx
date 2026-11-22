@@ -1,38 +1,33 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
-import { assignSoul } from "../../lib/api";
 import { shortDate } from "../../lib/dates";
 import { STATUS_LABEL } from "../../lib/souls";
-import type { Soul } from "../../lib/types";
-import { Avatar, Sheet, Top, frError, useToast } from "../../components/ui";
+import { isCampusAdmin, type Soul } from "../../lib/types";
+import { Avatar, Top } from "../../components/ui";
+import AssignSheet from "../../components/AssignSheet";
 
 export default function ToAssign() {
   const { profile, familyName } = useSession();
-  const { active, workers } = useScope();
-  const toast = useToast();
+  const { active, openServices } = useScope();
   const [pick, setPick] = useState<Soul | null>(null);
-  const list = active.filter(s => !s.makerId);
-  const loadOf = (id: string) => active.filter(s => s.makerId === id).length;
+  const list = active.filter(s => !s.makerId).sort((a, b) => b.arrivalDate.localeCompare(a.arrivalDate));
+  const admin = isCampusAdmin(profile!.role);
 
-  async function assign(s: Soul, id: string, name: string) {
-    setPick(null);
-    try { await assignSoul(profile!.id, s.id, id, name); toast(`${s.name} confiée à ${name}`); } catch (e) { toast(frError(e)); }
-  }
   return (
     <div className="page">
-      <Top title="À affecter" sub="Âmes reçues sans faiseur. Choisis qui les suivra." />
+      <Top title="À attribuer" sub="Nouvelles âmes sans faiseur. Choisis qui les suivra : le faiseur est prévenu tout de suite." />
+      {(openServices.length > 0 || admin) && <div className="btnrow" style={{ marginTop: 0, marginBottom: 12 }}><Link to="/ames/nouvelle" className="btn grad">Enregistrer une nouvelle âme</Link></div>}
       {list.length ? <div className="list">{list.map(s => (
         <div className="row" key={s.id}><Avatar name={s.name} />
-          <span className="main-col"><div className="name">{s.name}</div><div className="meta">{STATUS_LABEL[s.status]} · {s.neighborhood || "quartier inconnu"} · {shortDate(s.arrivalDate)}{profile!.role === "admin" ? ` · ${familyName(s.familyId)}` : ""}</div></span>
-          <button className="btn primary sm" style={{ flex: "none" }} onClick={() => setPick(s)}>Affecter</button></div>))}</div>
+          <Link to={`/ames/${s.id}`} className="main-col" style={{ textDecoration: "none", color: "inherit" }}>
+            <div className="name">{s.name}</div>
+            <div className="meta"><span className={"chip " + s.status.toLowerCase()}>{STATUS_LABEL[s.status]}</span>{s.gender === "F" ? "Femme" : "Homme"} · {s.service} du {shortDate(s.arrivalDate)}{admin ? ` · ${familyName(s.familyId)}` : ""}</div>
+          </Link>
+          <button className="btn primary sm" style={{ flex: "none" }} onClick={() => setPick(s)}>Attribuer</button></div>))}</div>
         : <div className="card empty">Toutes les âmes ont un faiseur.</div>}
-      {pick && (
-        <Sheet title={`Qui suivra ${pick.name.split(" ")[0]} ?`} onClose={() => setPick(null)}>
-          <p className="small" style={{ marginTop: 0 }}>Faiseurs de la famille {familyName(pick.familyId)}, avec le nombre d'âmes qu'ils suivent déjà.</p>
-          <div className="opts">{workers.filter(w => w.role === "maker" && w.active && w.familyId === pick.familyId).sort((a, b) => loadOf(a.id) - loadOf(b.id)).map(w => (
-            <button key={w.id} onClick={() => assign(pick, w.id, w.name)}>{w.name}<span className="small">{loadOf(w.id)} âmes</span></button>))}</div>
-        </Sheet>)}
+      {pick && <AssignSheet soul={pick} onClose={() => setPick(null)} />}
     </div>
   );
 }

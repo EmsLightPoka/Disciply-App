@@ -1,13 +1,16 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { collection, doc, onSnapshot } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
-import { DEFAULT_SETTINGS, type Family, type Settings, type UserProfile } from "./types";
+import { DEFAULT_SETTINGS, type Campus, type Family, type Settings, type UserProfile } from "./types";
 
 interface Session {
   ready: boolean;
   user: User | null;
   profile: UserProfile | null;
+  campusId: string | null;
+  campus: Campus | null;
+  campuses: Campus[];
   settings: Settings;
   families: Family[];
   familyName: (id: string | null | undefined) => string;
@@ -24,40 +27,46 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [profileReady, setProfileReady] = useState(false);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
   const [families, setFamilies] = useState<Family[]>([]);
+  const [campuses, setCampuses] = useState<Campus[]>([]);
 
   useEffect(() => onAuthStateChanged(auth, u => { setUser(u); setAuthReady(true); if (!u) { setProfile(null); setProfileReady(true); } }), []);
 
   useEffect(() => {
     if (!user) return;
     setProfileReady(false);
-    return onSnapshot(doc(db, "users", user.uid),
-      s => { setProfile(s.exists() ? ({ id: s.id, ...s.data() } as UserProfile) : null); setProfileReady(true); },
+    // Seulement la version confirmée par le serveur : les autres écoutes dépendent du rôle et du campus,
+    // et le serveur refuse tant qu'il ne connaît pas encore le changement.
+    return onSnapshot(doc(db, "users", user.uid), { includeMetadataChanges: true },
+      s => { if (s.metadata.hasPendingWrites) return; setProfile(s.exists() ? ({ id: s.id, ...s.data() } as UserProfile) : null); setProfileReady(true); },
       () => { setProfile(null); setProfileReady(true); });
   }, [user]);
 
-  const activeProfile = profile?.active ? profile : null;
+  const activeId = profile?.active ? profile.id : null;
+  const campusId = profile?.active ? profile.campusId ?? null : null;
 
   useEffect(() => {
-    if (!activeProfile) return;
-    const u1 = onSnapshot(doc(db, "settings", "global"), s => setSettings(s.exists() ? { ...DEFAULT_SETTINGS, ...(s.data() as Settings) } : DEFAULT_SETTINGS), () => {});
-    const u2 = onSnapshot(collection(db, "families"), s => setFamilies(s.docs.map(d => ({ id: d.id, ...d.data() }) as Family).sort((a, b) => a.name.localeCompare(b.name, "fr"))), () => {});
+    if (!activeId) return;
+    return onSnapshot(collection(db, "campuses"), s => setCampuses(s.docs.map(d => ({ id: d.id, ...d.data() }) as Campus).sort((a, b) => a.name.localeCompare(b.name, "fr"))), () => {});
+  }, [activeId]);
+
+  useEffect(() => {
+    if (!activeId || !campusId) { setFamilies([]); setSettings(DEFAULT_SETTINGS); return; }
+    const u1 = onSnapshot(doc(db, "settings", campusId), s => setSettings(s.exists() ? { ...DEFAULT_SETTINGS, ...(s.data() as Settings) } : DEFAULT_SETTINGS), () => {});
+    const u2 = onSnapshot(query(collection(db, "families"), where("campusId", "==", campusId)),
+      s => setFamilies(s.docs.map(d => ({ id: d.id, ...d.data() }) as Family).sort((a, b) => a.name.localeCompare(b.name, "fr"))), () => {});
     return () => { u1(); u2(); };
-  }, [activeProfile?.id]);
+  }, [activeId, campusId]);
 
-  // Thème choisi dans le profil
-  useEffect(() => {
-    const t = profile?.theme;
-    if (!t) return;
-    applyTheme(t);
-  }, [profile?.theme]);
+  useEffect(() => { if (profile?.theme) applyTheme(profile.theme); }, [profile?.theme]);
 
   const value = useMemo<Session>(() => ({
     ready: authReady && profileReady,
-    user, profile, settings, families,
+    user, profile, campusId, campuses, settings, families,
+    campus: campuses.find(c => c.id === campusId) ?? null,
     familyName: id => families.find(f => f.id === id)?.name ?? (id ? "Famille inconnue" : "Sans famille"),
     myFamily: families.find(f => f.id === profile?.familyId) ?? null,
     logout: () => signOut(auth)
-  }), [authReady, profileReady, user, profile, settings, families]);
+  }), [authReady, profileReady, user, profile, campusId, campuses, settings, families]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

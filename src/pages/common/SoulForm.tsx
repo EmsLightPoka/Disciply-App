@@ -5,8 +5,8 @@ import { today } from "../../lib/dates";
 
 export type SoulFields = Pick<Soul, "name" | "phone" | "gender" | "neighborhood" | "status" | "service" | "arrivalDate" | "inviter">;
 
-export default function SoulForm({ initial, onSubmit, submitLabel, busy, short }: {
-  initial?: Partial<SoulFields>; onSubmit: (d: SoulFields) => void; submitLabel: string; busy?: boolean; short?: boolean;
+export default function SoulForm({ initial, onSubmit, submitLabel, busy, short, hideService }: {
+  initial?: Partial<SoulFields>; onSubmit: (d: SoulFields) => void; submitLabel: string; busy?: boolean; short?: boolean; hideService?: boolean;
 }) {
   const { settings } = useSession();
   const [d, setD] = useState<SoulFields>({
@@ -25,12 +25,12 @@ export default function SoulForm({ initial, onSubmit, submitLabel, busy, short }
       <div className="field"><label>Sexe</label><div className="toggle">
         <button type="button" aria-pressed={d.gender === "F"} onClick={() => set("gender", "F")}>Femme</button>
         <button type="button" aria-pressed={d.gender === "H"} onClick={() => set("gender", "H")}>Homme</button></div></div>
-      <div className="grid2">
+      {!hideService && <div className="grid2">
         <div className="field"><label htmlFor="f-service">Culte</label><select id="f-service" value={d.service} onChange={e => set("service", e.target.value)}>{settings.services.map(x => <option key={x}>{x}</option>)}</select></div>
         <div className="field"><label htmlFor="f-date">Date d'arrivée</label><input id="f-date" type="date" max={today()} value={d.arrivalDate} onChange={e => set("arrivalDate", e.target.value)} /></div>
-      </div>
+      </div>}
+      <div className="field"><label htmlFor="f-quartier">Quartier</label><input id="f-quartier" value={d.neighborhood} onChange={e => set("neighborhood", e.target.value)} /></div>
       {!short && <>
-        <div className="field"><label htmlFor="f-quartier">Quartier</label><input id="f-quartier" value={d.neighborhood} onChange={e => set("neighborhood", e.target.value)} /></div>
         <div className="field"><label htmlFor="f-inviter">Invitée par</label><input id="f-inviter" value={d.inviter ?? ""} onChange={e => set("inviter", e.target.value)} placeholder="Nom de la personne qui l'a invitée" /></div>
       </>}
       <button className="btn primary block" disabled={busy}>{submitLabel}</button>

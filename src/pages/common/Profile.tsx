@@ -1,3 +1,4 @@
+import { isCampusAdmin } from "../../lib/types";
 import { useState } from "react";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "../../lib/firebase";
@@ -7,17 +8,18 @@ import { ROLE_LABEL } from "../../lib/types";
 import { Avatar, Top, frError, useToast } from "../../components/ui";
 
 export default function Profile() {
-  const { profile, myFamily, settings, logout } = useSession();
+  const { profile, myFamily, settings, logout, campus } = useSession();
   const toast = useToast();
   const me = profile!;
   const [name, setName] = useState(me.name);
   const [phone, setPhone] = useState(me.phone ?? "");
+  const [gender, setGender] = useState<"F" | "H" | undefined>(me.gender);
   const [busy, setBusy] = useState(false);
   const theme = me.theme ?? (document.documentElement.dataset.theme as "light" | "dark" | undefined) ?? "system";
 
   async function save() {
     setBusy(true);
-    try { await updateUser(me.id, { name: name.trim(), phone: phone.trim() }); toast("Profil enregistré"); }
+    try { await updateUser(me.id, { name: name.trim(), phone: phone.trim(), ...(gender ? { gender } : {}) }); toast("Profil enregistré"); }
     catch (e) { toast(frError(e)); } finally { setBusy(false); }
   }
   async function setTheme(t: "light" | "dark" | "system") { applyTheme(t); updateUser(me.id, { theme: t }).catch(() => {}); }
@@ -33,7 +35,7 @@ export default function Profile() {
         <div style={{ minWidth: 0 }}>
           <div style={{ fontWeight: 500, fontSize: 17 }}>{me.name}</div>
           <div className="small">{ROLE_LABEL[me.role]}</div>
-          <div className="small">{me.role === "admin" ? settings.churchName : myFamily ? `Famille ${myFamily.name}` : "Famille non définie"}</div>
+          <div className="small">{isCampusAdmin(me.role) ? (campus?.name ? `Campus ${campus.name}` : settings.churchName) : myFamily ? `Famille ${myFamily.name}` : "Famille non définie"}</div>
         </div>
       </div>
 
@@ -41,6 +43,9 @@ export default function Profile() {
       <div className="card">
         <div className="field"><label htmlFor="p-name">Nom</label><input id="p-name" value={name} onChange={e => setName(e.target.value)} /></div>
         <div className="field"><label htmlFor="p-phone">Téléphone</label><input id="p-phone" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} /></div>
+        <div className="field"><label>Sexe</label><div className="toggle">
+          <button type="button" aria-pressed={gender === "F"} onClick={() => setGender("F")}>Femme</button>
+          <button type="button" aria-pressed={gender === "H"} onClick={() => setGender("H")}>Homme</button></div></div>
         <div className="field"><label>E-mail de connexion</label><input value={me.email} disabled /></div>
         <button className="btn primary block" disabled={busy || !name.trim()} onClick={save}>Enregistrer</button>
       </div>

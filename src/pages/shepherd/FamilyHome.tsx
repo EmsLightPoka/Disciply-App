@@ -23,13 +23,13 @@ export default function FamilyHome() {
       <div className="grid2 grid4">
         <Link to="/ames" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="v">{active.length}</div><div className="l">âmes en suivi</div></Link>
         <div className="stat"><div className="v">{pointed.length ? `${Math.round((present / pointed.length) * 100)} %` : "—"}</div><div className="l">présence ce dimanche</div></div>
-        <Link to="/a-affecter" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="v">{unassigned.length}</div><div className="l">à affecter</div></Link>
+        <Link to="/a-attribuer" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="v">{unassigned.length}</div><div className="l">à attribuer</div></Link>
         <div className="stat"><div className="v">{alerts.length}</div><div className="l">en alerte</div></div>
       </div>
 
       {unassigned.length > 0 && <div className="hero" style={{ marginTop: 16 }}>
         <span className="big">{unassigned.length} âme{unassigned.length > 1 ? "s" : ""} sans faiseur</span>
-        <Link to="/a-affecter" className="btn grad" style={{ alignSelf: "flex-start" }}>Affecter maintenant</Link>
+        <Link to="/a-attribuer" className="btn grad" style={{ alignSelf: "flex-start" }}>Attribuer maintenant</Link>
       </div>}
 
       <div className="eyebrow">Faiseurs <Link to="/equipe">Inviter</Link></div>

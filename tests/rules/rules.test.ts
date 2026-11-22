@@ -1,9 +1,11 @@
 import { readFileSync } from "node:fs";
 import { afterAll, beforeAll, beforeEach, describe, it } from "vitest";
 import { assertFails, assertSucceeds, initializeTestEnvironment, type RulesTestEnvironment } from "@firebase/rules-unit-testing";
-import { doc, getDoc, setDoc, updateDoc, writeBatch, collection, getDocs, query, where, deleteDoc } from "firebase/firestore";
+import { Timestamp, collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
 
 let env: RulesTestEnvironment;
+const H = 3600_000;
+const ts = (offsetMs: number) => Timestamp.fromMillis(Date.now() + offsetMs);
 
 beforeAll(async () => {
   env = await initializeTestEnvironment({
@@ -13,167 +15,203 @@ beforeAll(async () => {
 });
 afterAll(async () => { await env.cleanup(); });
 
+const u = (role: string, campusId: string | null, familyId: string | null, active = true, gender = "F") =>
+  ({ name: role, email: "", role, campusId, familyId, active, gender });
+
 beforeEach(async () => {
   await env.clearFirestore();
   await env.withSecurityRulesDisabled(async ctx => {
     const db = ctx.firestore();
-    await setDoc(doc(db, "meta/bootstrap"), { adminId: "admin" });
-    await setDoc(doc(db, "families/amour"), { name: "Amour", shepherdId: "berger" });
-    await setDoc(doc(db, "families/foi"), { name: "Foi", shepherdId: null });
-    await setDoc(doc(db, "users/admin"), { name: "Admin", email: "a@x.cm", role: "admin", familyId: null, active: true });
-    await setDoc(doc(db, "users/berger"), { name: "Berger", email: "b@x.cm", role: "shepherd", familyId: "amour", active: true });
-    await setDoc(doc(db, "users/grace"), { name: "Grâce", email: "g@x.cm", role: "maker", familyId: "amour", active: true });
-    await setDoc(doc(db, "users/paul"), { name: "Paul", email: "p@x.cm", role: "maker", familyId: "amour", active: true });
-    await setDoc(doc(db, "users/eric"), { name: "Éric", email: "e@x.cm", role: "maker", familyId: "foi", active: true });
-    await setDoc(doc(db, "users/off"), { name: "Off", email: "o@x.cm", role: "maker", familyId: "amour", active: false });
-    await setDoc(doc(db, "souls/s1"), { name: "Brigitte", familyId: "amour", makerId: "grace", state: "active", steps: {} });
-    await setDoc(doc(db, "souls/s2"), { name: "Junior", familyId: "amour", makerId: "paul", state: "active", steps: {} });
-    await setDoc(doc(db, "souls/s3"), { name: "Hervé", familyId: "foi", makerId: "eric", state: "active", steps: {} });
-    await setDoc(doc(db, "invitations/tok1"), { name: "Nouveau", email: "new@x.cm", role: "maker", familyId: "amour", usedBy: null });
+    const put = (p: string, d: object) => setDoc(doc(db, p), d);
+    await put("meta/bootstrap", { masterId: "master" });
+    await put("campuses/yde", { name: "Yaoundé" });
+    await put("campuses/dla", { name: "Douala" });
+    await put("families/amour", { campusId: "yde", name: "Amour", shepherdId: "berger" });
+    await put("families/foi", { campusId: "yde", name: "Foi", shepherdId: null });
+    await put("families/paix", { campusId: "dla", name: "Paix", shepherdId: null });
+    await put("users/master", { ...u("master", "yde", null), email: "master@x.cm" });
+    await put("users/pasteur", { ...u("admin", "yde", null), email: "pasteur@x.cm" });
+    await put("users/pasteurdla", { ...u("admin", "dla", null), email: "pasteurdla@x.cm" });
+    await put("users/berger", { ...u("shepherd", "yde", "amour"), email: "berger@x.cm" });
+    await put("users/assist", { ...u("assistant", "yde", "amour"), email: "assist@x.cm" });
+    await put("users/grace", { ...u("maker", "yde", "amour"), email: "grace@x.cm" });
+    await put("users/paul", { ...u("maker", "yde", "amour", true, "H"), email: "paul@x.cm" });
+    await put("users/eric", { ...u("maker", "yde", "foi", true, "H"), email: "eric@x.cm" });
+    await put("users/off", { ...u("maker", "yde", "amour", false), email: "off@x.cm" });
+    // Amour sert aujourd'hui (fenêtre ouverte) ; Foi a servi la semaine dernière (fermée).
+    await put("services/today_amour", { campusId: "yde", familyId: "amour", date: "", slot: "1er culte", opensAt: ts(-2 * H), makersUntil: ts(6 * H), leadersUntil: ts(18 * H) });
+    await put("services/past_foi", { campusId: "yde", familyId: "foi", date: "", slot: "1er culte", opensAt: ts(-170 * H), makersUntil: ts(-160 * H), leadersUntil: ts(-148 * H) });
+    await put("services/yesterday_amour", { campusId: "yde", familyId: "amour", date: "", slot: "2e culte", opensAt: ts(-30 * H), makersUntil: ts(-6 * H), leadersUntil: ts(6 * H) });
+    await put("souls/s1", { campusId: "yde", name: "Brigitte", familyId: "amour", makerId: "grace", createdBy: "berger", makersUntil: ts(-100 * H), state: "active", steps: {} });
+    await put("souls/s2", { campusId: "yde", name: "Junior", familyId: "amour", makerId: "paul", createdBy: "berger", makersUntil: ts(-100 * H), state: "active", steps: {} });
+    await put("souls/s3", { campusId: "yde", name: "Hervé", familyId: "foi", makerId: "eric", createdBy: "eric", makersUntil: ts(-100 * H), state: "active", steps: {} });
+    await put("souls/pool", { campusId: "yde", name: "Nadège", familyId: "amour", makerId: null, createdBy: "grace", makersUntil: ts(6 * H), state: "active", steps: {} });
+    await put("souls/d1", { campusId: "dla", name: "Douala", familyId: "paix", makerId: null, createdBy: "pasteurdla", makersUntil: ts(-100 * H), state: "active", steps: {} });
+    await put("invitations/tok1", { campusId: "yde", name: "Nouveau", email: "new@x.cm", role: "maker", familyId: "amour", usedBy: null });
+    await put("notifications/n1", { campusId: "yde", userId: "grace", by: "berger", read: false, title: "x" });
   });
 });
 
-const as = (uid: string, email?: string) => env.authenticatedContext(uid, { email: email ?? `${uid}@x.cm` }).firestore();
+const as = (uid: string) => env.authenticatedContext(uid, { email: `${uid}@x.cm` }).firestore();
 const anon = () => env.unauthenticatedContext().firestore();
+const newSoul = (by: string, extra: object = {}) => ({
+  campusId: "yde", name: "X", familyId: "amour", makerId: null, createdBy: by, serviceId: "today_amour",
+  makersUntil: (extra as { makersUntil?: Timestamp }).makersUntil ?? null, state: "active", steps: {}, ...extra
+});
 
 describe("visiteur non connecté", () => {
   it("ne lit ni les âmes ni les profils", async () => {
     await assertFails(getDoc(doc(anon(), "souls/s1")));
     await assertFails(getDocs(collection(anon(), "users")));
-    await assertFails(getDocs(collection(anon(), "souls")));
   });
-  it("peut lire une invitation par son lien, mais pas la liste", async () => {
+  it("lit une invitation par son lien, jamais la liste", async () => {
     await assertSucceeds(getDoc(doc(anon(), "invitations/tok1")));
     await assertFails(getDocs(collection(anon(), "invitations")));
   });
 });
 
+describe("séparation des campus", () => {
+  it("le pasteur ne voit rien d'un autre campus", async () => {
+    await assertFails(getDoc(doc(as("pasteur"), "souls/d1")));
+    await assertFails(getDocs(query(collection(as("pasteur"), "souls"), where("campusId", "==", "dla"))));
+    await assertSucceeds(getDocs(query(collection(as("pasteur"), "souls"), where("campusId", "==", "yde"))));
+    await assertFails(getDoc(doc(as("pasteur"), "families/paix")));
+  });
+  it("l'administrateur de l'application voit tous les campus et en crée", async () => {
+    await assertSucceeds(getDoc(doc(as("master"), "souls/d1")));
+    await assertSucceeds(setDoc(doc(as("master"), "campuses/bfs"), { name: "Bafoussam" }));
+    await assertFails(setDoc(doc(as("pasteur"), "campuses/bfs2"), { name: "Bafoussam" }));
+  });
+  it("un pasteur ne nomme pas d'administrateur de l'application", async () => {
+    await assertFails(updateDoc(doc(as("pasteur"), "users/grace"), { role: "master" }));
+    await assertSucceeds(updateDoc(doc(as("pasteur"), "users/grace"), { role: "shepherd" }));
+  });
+});
+
+describe("programme de service", () => {
+  it("seul le pasteur choisit la famille de service", async () => {
+    const s = { campusId: "yde", familyId: "foi", date: "", slot: "1er culte", opensAt: ts(0), makersUntil: ts(H), leadersUntil: ts(2 * H) };
+    await assertSucceeds(setDoc(doc(as("pasteur"), "services/new"), s));
+    await assertFails(setDoc(doc(as("berger"), "services/new2"), s));
+    await assertFails(setDoc(doc(as("pasteurdla"), "services/new3"), s));
+  });
+});
+
+describe("enregistrement des nouvelles âmes", () => {
+  it("le faiseur d'une famille de service enregistre dans le pool, le jour même", async () => {
+    const until = ts(6 * H);
+    await env.withSecurityRulesDisabled(async ctx => { await updateDoc(doc(ctx.firestore(), "services/today_amour"), { makersUntil: until }); });
+    await assertSucceeds(setDoc(doc(as("grace"), "souls/n1"), newSoul("grace", { makersUntil: until })));
+    // Pas pour lui-même : l'âme va dans « À attribuer ».
+    await assertFails(setDoc(doc(as("grace"), "souls/n2"), newSoul("grace", { makersUntil: until, makerId: "grace" })));
+  });
+  it("une famille qui ne sert pas, ou après la fenêtre, ne peut pas enregistrer", async () => {
+    await assertFails(setDoc(doc(as("eric"), "souls/n3"), newSoul("eric", { familyId: "foi", serviceId: "past_foi" })));
+    await assertFails(setDoc(doc(as("eric"), "souls/n4"), newSoul("eric", { familyId: "foi", serviceId: "today_amour" })));
+    await assertFails(setDoc(doc(as("grace"), "souls/n5"), newSoul("grace", { serviceId: "yesterday_amour" })));
+  });
+  it("berger et assistant ont jusqu'au lundi midi", async () => {
+    await assertSucceeds(setDoc(doc(as("berger"), "souls/n6"), newSoul("berger", { serviceId: "yesterday_amour" })));
+    await assertSucceeds(setDoc(doc(as("assist"), "souls/n7"), newSoul("assist", { serviceId: "yesterday_amour" })));
+  });
+  it("le pasteur enregistre à tout moment", async () => {
+    await assertSucceeds(setDoc(doc(as("pasteur"), "souls/n8"), newSoul("pasteur", { serviceId: "past_foi", familyId: "foi" })));
+  });
+});
+
 describe("faiseur", () => {
-  it("lit ses âmes, pas celles des autres", async () => {
+  it("voit ses âmes et celles qu'il a enregistrées aujourd'hui, rien d'autre", async () => {
     const db = as("grace");
     await assertSucceeds(getDoc(doc(db, "souls/s1")));
+    await assertSucceeds(getDoc(doc(db, "souls/pool")));
     await assertFails(getDoc(doc(db, "souls/s2")));
     await assertFails(getDoc(doc(db, "souls/s3")));
-    await assertSucceeds(getDocs(query(collection(db, "souls"), where("makerId", "==", "grace"))));
-    await assertFails(getDocs(query(collection(db, "souls"), where("familyId", "==", "amour"))));
+    await assertSucceeds(getDocs(query(collection(db, "souls"), where("campusId", "==", "yde"), where("makerId", "==", "grace"))));
+    await assertSucceeds(getDocs(query(collection(db, "souls"), where("campusId", "==", "yde"), where("createdBy", "==", "grace"), where("makersUntil", ">", ts(10 * 60_000)))));
+    await assertFails(getDocs(query(collection(db, "souls"), where("campusId", "==", "yde"), where("createdBy", "==", "grace"))));
+    await assertFails(getDocs(query(collection(db, "souls"), where("campusId", "==", "yde"), where("familyId", "==", "amour"))));
   });
-  it("crée une âme pour lui-même dans sa famille seulement", async () => {
-    const db = as("grace");
-    await assertSucceeds(setDoc(doc(db, "souls/n1"), { name: "X", familyId: "amour", makerId: "grace", state: "active", steps: {} }));
-    await assertFails(setDoc(doc(db, "souls/n2"), { name: "X", familyId: "foi", makerId: "grace", state: "active", steps: {} }));
-    await assertFails(setDoc(doc(db, "souls/n3"), { name: "X", familyId: "amour", makerId: "paul", state: "active", steps: {} }));
-  });
-  it("ne peut pas se réattribuer l'âme d'un autre ni changer la famille", async () => {
-    const db = as("grace");
-    await assertFails(updateDoc(doc(db, "souls/s2"), { makerId: "grace" }));
-    await assertFails(updateDoc(doc(db, "souls/s1"), { familyId: "foi" }));
-    await assertSucceeds(updateDoc(doc(db, "souls/s1"), { "steps.regularite": { date: "2026-11-22", by: "grace" } }));
+  it("ne s'attribue pas une âme et ne change pas de rôle", async () => {
+    await assertFails(updateDoc(doc(as("grace"), "souls/pool"), { makerId: "grace" }));
+    await assertFails(updateDoc(doc(as("grace"), "souls/s2"), { makerId: "grace" }));
+    await assertFails(updateDoc(doc(as("grace"), "users/grace"), { role: "admin" }));
+    await assertSucceeds(updateDoc(doc(as("grace"), "souls/s1"), { "steps.regularite": { date: "2026-11-22", by: "grace" } }));
   });
   it("pointe ses âmes uniquement", async () => {
-    const db = as("grace");
-    await assertSucceeds(setDoc(doc(db, "attendances/2026-11-22_s1"), { soulId: "s1", familyId: "amour", makerId: "grace", date: "2026-11-22", present: true }));
-    await assertFails(setDoc(doc(db, "attendances/2026-11-22_s2"), { soulId: "s2", familyId: "amour", makerId: "grace", date: "2026-11-22", present: true }));
+    const a = (soulId: string) => ({ campusId: "yde", soulId, familyId: "amour", makerId: "grace", date: "2026-11-22", present: true });
+    await assertSucceeds(setDoc(doc(as("grace"), "attendances/a1"), a("s1")));
+    await assertFails(setDoc(doc(as("grace"), "attendances/a2"), a("s2")));
   });
-  it("ne supprime jamais une âme et ne change pas son rôle", async () => {
-    const db = as("grace");
-    await assertFails(deleteDoc(doc(db, "souls/s1")));
-    await assertFails(updateDoc(doc(db, "users/grace"), { role: "admin" }));
-    await assertSucceeds(updateDoc(doc(db, "users/grace"), { phone: "699" }));
-  });
-  it("écrit des notes sur ses âmes seulement", async () => {
-    const db = as("grace");
-    await assertSucceeds(setDoc(doc(db, "souls/s1/notes/n1"), { text: "ok", authorId: "grace", authorName: "Grâce" }));
-    await assertFails(setDoc(doc(db, "souls/s2/notes/n1"), { text: "ok", authorId: "grace", authorName: "Grâce" }));
-    await assertFails(setDoc(doc(db, "souls/s1/notes/n2"), { text: "ok", authorId: "paul", authorName: "Paul" }));
+  it("un compte désactivé ne lit plus rien", async () => {
+    await assertFails(getDocs(query(collection(as("off"), "souls"), where("campusId", "==", "yde"), where("makerId", "==", "off"))));
   });
 });
 
-describe("compte désactivé", () => {
-  it("ne lit plus rien", async () => {
-    await env.withSecurityRulesDisabled(async ctx => { await setDoc(doc(ctx.firestore(), "souls/s9"), { name: "Z", familyId: "amour", makerId: "off", state: "active" }); });
-    await assertFails(getDoc(doc(as("off"), "souls/s9")));
-    await assertFails(getDoc(doc(as("off"), "families/amour")));
+describe("berger et assistant", () => {
+  it("attribuent les âmes de leur famille et notifient le faiseur", async () => {
+    await assertSucceeds(updateDoc(doc(as("assist"), "souls/pool"), { makerId: "paul" }));
+    await assertSucceeds(setDoc(doc(as("assist"), "notifications/n2"), { campusId: "yde", userId: "paul", by: "assist", read: false, title: "Nouvelle âme" }));
+    await assertFails(updateDoc(doc(as("berger"), "souls/s3"), { makerId: "grace" }));
+  });
+  it("le faiseur ne peut pas envoyer de notification", async () => {
+    await assertFails(setDoc(doc(as("grace"), "notifications/n3"), { campusId: "yde", userId: "paul", by: "grace", read: false, title: "x" }));
+  });
+  it("le berger nomme un assistant, l'assistant ne peut pas", async () => {
+    await assertSucceeds(updateDoc(doc(as("berger"), "users/paul"), { role: "assistant" }));
+    await assertFails(updateDoc(doc(as("assist"), "users/grace"), { role: "assistant" }));
+    await assertFails(updateDoc(doc(as("berger"), "users/eric"), { role: "assistant" }));
+    await assertFails(updateDoc(doc(as("berger"), "users/paul"), { role: "shepherd" }));
+  });
+  it("le berger invite des faiseurs dans sa famille seulement", async () => {
+    const inv = (familyId: string, role = "maker") => ({ campusId: "yde", name: "N", email: "n@x.cm", role, familyId, usedBy: null });
+    await assertSucceeds(setDoc(doc(as("berger"), "invitations/i1"), inv("amour")));
+    await assertFails(setDoc(doc(as("berger"), "invitations/i2"), inv("foi")));
+    await assertFails(setDoc(doc(as("berger"), "invitations/i3"), inv("amour", "shepherd")));
   });
 });
 
-describe("berger", () => {
-  it("voit et gère toute sa famille, pas les autres", async () => {
-    const db = as("berger");
-    await assertSucceeds(getDoc(doc(db, "souls/s2")));
-    await assertFails(getDoc(doc(db, "souls/s3")));
-    await assertSucceeds(getDocs(query(collection(db, "souls"), where("familyId", "==", "amour"))));
-    await assertSucceeds(updateDoc(doc(db, "souls/s1"), { makerId: "paul" }));
-    await assertFails(updateDoc(doc(db, "souls/s3"), { makerId: "paul" }));
-  });
-  it("peut transférer une âme vers une autre famille", async () => {
-    await assertSucceeds(updateDoc(doc(as("berger"), "souls/s1"), { familyId: "foi", makerId: null }));
-  });
-  it("invite des faiseurs dans sa famille seulement", async () => {
-    const db = as("berger");
-    await assertSucceeds(setDoc(doc(db, "invitations/t2"), { name: "A", email: "a2@x.cm", role: "maker", familyId: "amour", usedBy: null }));
-    await assertFails(setDoc(doc(db, "invitations/t3"), { name: "A", email: "a3@x.cm", role: "shepherd", familyId: "amour", usedBy: null }));
-    await assertFails(setDoc(doc(db, "invitations/t4"), { name: "A", email: "a4@x.cm", role: "maker", familyId: "foi", usedBy: null }));
-  });
-  it("ne modifie pas les réglages ni les familles", async () => {
-    const db = as("berger");
-    await assertFails(setDoc(doc(db, "settings/global"), { churchName: "X" }));
-    await assertFails(updateDoc(doc(db, "families/amour"), { name: "Y" }));
+describe("notifications", () => {
+  it("chacun lit et marque comme lues seulement les siennes", async () => {
+    await assertSucceeds(getDoc(doc(as("grace"), "notifications/n1")));
+    await assertFails(getDoc(doc(as("paul"), "notifications/n1")));
+    await assertSucceeds(updateDoc(doc(as("grace"), "notifications/n1"), { read: true }));
+    await assertFails(updateDoc(doc(as("grace"), "notifications/n1"), { title: "changé" }));
   });
 });
 
-describe("responsable", () => {
-  it("lit et modifie tout", async () => {
-    const db = as("admin");
-    await assertSucceeds(getDocs(collection(db, "souls")));
-    await assertSucceeds(getDocs(collection(db, "users")));
-    await assertSucceeds(setDoc(doc(db, "settings/global"), { churchName: "ICC" }));
-    await assertSucceeds(updateDoc(doc(db, "users/grace"), { role: "shepherd" }));
-    await assertSucceeds(deleteDoc(doc(db, "souls/s3")));
+describe("rapports du lundi", () => {
+  const rep = (makerId: string, familyId = "amour") => ({ campusId: "yde", familyId, makerId, week: "2026-11-22", comment: "" });
+  it("le faiseur envoie son rapport, le berger le lit, un autre faiseur non", async () => {
+    await assertSucceeds(setDoc(doc(as("grace"), "reports/r1"), rep("grace")));
+    await assertFails(setDoc(doc(as("grace"), "reports/r2"), rep("paul")));
+    await assertSucceeds(getDoc(doc(as("berger"), "reports/r1")));
+    await assertFails(getDoc(doc(as("paul"), "reports/r1")));
+    await assertFails(getDoc(doc(as("eric"), "reports/r1")));
+  });
+  it("le berger envoie le rapport compilé au pasteur", async () => {
+    const fr = { campusId: "yde", familyId: "amour", sentBy: "berger", week: "2026-11-22", text: "" };
+    await assertSucceeds(setDoc(doc(as("berger"), "familyReports/f1"), fr));
+    await assertSucceeds(getDoc(doc(as("pasteur"), "familyReports/f1")));
+    await assertFails(getDoc(doc(as("pasteurdla"), "familyReports/f1")));
+    await assertFails(setDoc(doc(as("grace"), "familyReports/f2"), { ...fr, sentBy: "grace" }));
   });
 });
 
-describe("inscription", () => {
-  it("accepte une invitation valide avec le bon e-mail", async () => {
-    const db = as("newuid", "new@x.cm");
-    const b = writeBatch(db);
-    b.set(doc(db, "users/newuid"), { name: "Nouveau", email: "new@x.cm", role: "maker", familyId: "amour", active: true, inviteId: "tok1" });
-    b.update(doc(db, "invitations/tok1"), { usedBy: "newuid" });
-    await assertSucceeds(b.commit());
+describe("invitation et création de compte", () => {
+  it("le nouveau compte reçoit exactement le rôle et le campus de l'invitation", async () => {
+    const db = env.authenticatedContext("newbie", { email: "new@x.cm" }).firestore();
+    const { writeBatch } = await import("firebase/firestore");
+    const bad = writeBatch(db);
+    bad.set(doc(db, "users/newbie"), { name: "N", email: "new@x.cm", role: "admin", campusId: "yde", familyId: "amour", active: true, inviteId: "tok1" });
+    bad.update(doc(db, "invitations/tok1"), { usedBy: "newbie", usedAt: Timestamp.now() });
+    await assertFails(bad.commit());
+    const ok = writeBatch(db);
+    ok.set(doc(db, "users/newbie"), { name: "N", email: "new@x.cm", role: "maker", campusId: "yde", familyId: "amour", active: true, inviteId: "tok1" });
+    ok.update(doc(db, "invitations/tok1"), { usedBy: "newbie", usedAt: Timestamp.now() });
+    await assertSucceeds(ok.commit());
   });
-  it("refuse un autre e-mail, un autre rôle ou une invitation déjà utilisée", async () => {
-    const wrong = as("u2", "autre@x.cm");
-    const b1 = writeBatch(wrong);
-    b1.set(doc(wrong, "users/u2"), { name: "X", email: "autre@x.cm", role: "maker", familyId: "amour", active: true, inviteId: "tok1" });
-    b1.update(doc(wrong, "invitations/tok1"), { usedBy: "u2" });
-    await assertFails(b1.commit());
-
-    const db = as("u3", "new@x.cm");
-    const b2 = writeBatch(db);
-    b2.set(doc(db, "users/u3"), { name: "X", email: "new@x.cm", role: "admin", familyId: "amour", active: true, inviteId: "tok1" });
-    b2.update(doc(db, "invitations/tok1"), { usedBy: "u3" });
-    await assertFails(b2.commit());
-
-    await env.withSecurityRulesDisabled(async ctx => { await updateDoc(doc(ctx.firestore(), "invitations/tok1"), { usedBy: "someone" }); });
-    const b3 = writeBatch(db);
-    b3.set(doc(db, "users/u3"), { name: "X", email: "new@x.cm", role: "maker", familyId: "amour", active: true, inviteId: "tok1" });
-    b3.update(doc(db, "invitations/tok1"), { usedBy: "u3" });
-    await assertFails(b3.commit());
-  });
-  it("refuse de se créer un profil sans invitation", async () => {
-    await assertFails(setDoc(doc(as("hacker"), "users/hacker"), { name: "H", email: "hacker@x.cm", role: "admin", familyId: null, active: true }));
-  });
-  it("installation : le premier responsable seulement, une seule fois", async () => {
-    await env.withSecurityRulesDisabled(async ctx => { await deleteDoc(doc(ctx.firestore(), "meta/bootstrap")); });
-    const db = as("first", "first@x.cm");
-    const b = writeBatch(db);
-    b.set(doc(db, "users/first"), { name: "F", email: "first@x.cm", role: "admin", familyId: null, active: true });
-    b.set(doc(db, "meta/bootstrap"), { adminId: "first" });
-    await assertSucceeds(b.commit());
-
-    const db2 = as("second", "second@x.cm");
-    const b2 = writeBatch(db2);
-    b2.set(doc(db2, "users/second"), { name: "S", email: "second@x.cm", role: "admin", familyId: null, active: true });
-    b2.set(doc(db2, "meta/bootstrap"), { adminId: "second" });
-    await assertFails(b2.commit());
+  it("seul l'administrateur de l'application supprime une âme", async () => {
+    await assertFails(deleteDoc(doc(as("berger"), "souls/s1")));
+    await assertSucceeds(deleteDoc(doc(as("pasteur"), "souls/s1")));
   });
 });

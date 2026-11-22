@@ -13,6 +13,7 @@ export default function AcceptInvite() {
   const [inv, setInv] = useState<Invitation | null | undefined>(undefined);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [gender, setGender] = useState<"F" | "H" | "">("");
   const [pw, setPw] = useState("");
   const [pw2, setPw2] = useState("");
   const [err, setErr] = useState("");
@@ -20,7 +21,7 @@ export default function AcceptInvite() {
 
   useEffect(() => {
     getDoc(doc(db, "invitations", id))
-      .then(s => { const d = s.exists() ? ({ id: s.id, ...s.data() } as Invitation) : null; setInv(d); if (d) setName(d.name); })
+      .then(s => { const d = s.exists() ? ({ id: s.id, ...s.data() } as Invitation) : null; setInv(d); if (d) { setName(d.name); if (d.gender) setGender(d.gender); } })
       .catch(() => setInv(null));
   }, [id]);
 
@@ -28,8 +29,9 @@ export default function AcceptInvite() {
     e.preventDefault(); setErr("");
     if (pw.length < 8) return setErr("Le mot de passe doit faire au moins 8 caractères.");
     if (pw !== pw2) return setErr("Les deux mots de passe ne sont pas identiques.");
+    if (!gender) return setErr("Indique si tu es un homme ou une femme : les âmes sont attribuées selon le sexe.");
     setBusy(true);
-    try { await acceptInvitation(inv!, name.trim(), phone.trim(), pw); }
+    try { await acceptInvitation(inv!, name.trim(), phone.trim(), gender, pw); }
     catch (x) { setErr(frError(x)); setBusy(false); }
   }
 
@@ -55,7 +57,8 @@ export default function AcceptInvite() {
           <div className="card" style={{ marginTop: 12 }}>
             <dl className="kv">
               <dt>Rôle</dt><dd>{ROLE_LABEL[inv.role]}</dd>
-              <dt>Famille</dt><dd>{inv.familyName ?? "Toute l'église"}</dd>
+              <dt>Campus</dt><dd>{inv.campusName ?? "Tous les campus"}</dd>
+              {inv.familyName && <><dt>Famille</dt><dd>{inv.familyName}</dd></>}
               <dt>E-mail</dt><dd>{inv.email}</dd>
             </dl>
           </div>
@@ -63,6 +66,9 @@ export default function AcceptInvite() {
             {err && <div className="error" role="alert">{err}</div>}
             <div className="field"><label htmlFor="name">Nom et prénom</label><input id="name" required value={name} onChange={e => setName(e.target.value)} autoComplete="name" /></div>
             <div className="field"><label htmlFor="phone">Téléphone</label><input id="phone" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="6 XX XX XX XX" autoComplete="tel" /></div>
+            <div className="field"><label>Sexe</label><div className="toggle">
+              <button type="button" aria-pressed={gender === "F"} onClick={() => setGender("F")}>Femme</button>
+              <button type="button" aria-pressed={gender === "H"} onClick={() => setGender("H")}>Homme</button></div></div>
             <div className="field"><label htmlFor="pw">Mot de passe</label><input id="pw" type="password" required minLength={8} value={pw} onChange={e => setPw(e.target.value)} autoComplete="new-password" /><span className="hint">8 caractères minimum</span></div>
             <div className="field"><label htmlFor="pw2">Confirmer le mot de passe</label><input id="pw2" type="password" required value={pw2} onChange={e => setPw2(e.target.value)} autoComplete="new-password" /></div>
             <button className="btn primary block" disabled={busy}>{busy ? "Création…" : "Créer mon compte"}</button>

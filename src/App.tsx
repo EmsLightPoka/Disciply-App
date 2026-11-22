@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useSession } from "./lib/session";
 import { ScopeProvider } from "./lib/scope";
+import { isCampusAdmin, isLeader, type Role } from "./lib/types";
 import { Loading } from "./components/ui";
 import Shell from "./components/Shell";
 import Login from "./pages/auth/Login";
@@ -13,37 +14,34 @@ import SoulsList from "./pages/common/SoulsList";
 import SoulDetail from "./pages/common/SoulDetail";
 import NewSoul from "./pages/common/NewSoul";
 import Sunday from "./pages/common/Sunday";
-import Report from "./pages/common/Report";
+import SundayFigures from "./pages/common/Report";
+import Reports from "./pages/common/Reports";
+import Notifications from "./pages/common/Notifications";
 import Profile from "./pages/common/Profile";
 import FamilyHome from "./pages/shepherd/FamilyHome";
 import ToAssign from "./pages/shepherd/ToAssign";
 import Team from "./pages/common/Team";
+import Schedule from "./pages/common/Schedule";
 import Church from "./pages/admin/Church";
 import Families from "./pages/admin/Families";
 import Settings from "./pages/admin/Settings";
+import Campuses from "./pages/admin/Campuses";
 import Archives from "./pages/common/Archives";
 
-const HOME = { maker: "/aujourdhui", shepherd: "/famille", admin: "/eglise" } as const;
+const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/eglise" };
 
 export default function App() {
-  const { ready, user, profile } = useSession();
+  const { ready, user, profile, campusId } = useSession();
   const loc = useLocation();
-
   if (!ready) return <Loading />;
-
-  const publicRoutes = (
-    <>
-      <Route path="/connexion" element={<Login />} />
-      <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
-      <Route path="/invitation/:id" element={<AcceptInvite />} />
-      <Route path="/installation" element={<Setup />} />
-    </>
-  );
 
   if (!user) {
     return (
       <Routes>
-        {publicRoutes}
+        <Route path="/connexion" element={<Login />} />
+        <Route path="/mot-de-passe-oublie" element={<ForgotPassword />} />
+        <Route path="/invitation/:id" element={<AcceptInvite />} />
+        <Route path="/installation" element={<Setup />} />
         <Route path="*" element={<Navigate to="/connexion" replace state={{ from: loc.pathname }} />} />
       </Routes>
     );
@@ -59,29 +57,32 @@ export default function App() {
   }
 
   const role = profile.role;
+  const admin = isCampusAdmin(role), leader = isLeader(role);
+  const home = role === "master" && !campusId ? "/campus" : HOME[role];
   return (
     <ScopeProvider>
       <Shell>
         <Routes>
-          <Route path="/" element={<Navigate to={HOME[role]} replace />} />
-          <Route path="/connexion" element={<Navigate to={HOME[role]} replace />} />
-          <Route path="/invitation/:id" element={<Navigate to={HOME[role]} replace />} />
-          <Route path="/installation" element={<Navigate to={HOME[role]} replace />} />
-          <Route path="/aujourdhui" element={<Today />} />
+          {["/", "/connexion", "/installation", "/invitation/:id"].map(p => <Route key={p} path={p} element={<Navigate to={home} replace />} />)}
           <Route path="/ames" element={<SoulsList />} />
           <Route path="/ames/nouvelle" element={<NewSoul />} />
           <Route path="/ames/:id" element={<SoulDetail />} />
           <Route path="/dimanche" element={<Sunday />} />
-          <Route path="/rapport" element={<Report />} />
+          <Route path="/rapports" element={<Reports />} />
+          <Route path="/notifications" element={<Notifications />} />
           <Route path="/profil" element={<Profile />} />
-          {role !== "maker" && <Route path="/equipe" element={<Team />} />}
-          {role !== "maker" && <Route path="/archives" element={<Archives />} />}
-          {role === "shepherd" && <Route path="/famille" element={<FamilyHome />} />}
-          {role !== "maker" && <Route path="/a-affecter" element={<ToAssign />} />}
-          {role === "admin" && <Route path="/eglise" element={<Church />} />}
-          {role === "admin" && <Route path="/familles" element={<Families />} />}
-          {role === "admin" && <Route path="/reglages" element={<Settings />} />}
-          <Route path="*" element={<Navigate to={HOME[role]} replace />} />
+          {role === "maker" && <Route path="/aujourdhui" element={<Today />} />}
+          {(leader || admin) && <Route path="/a-attribuer" element={<ToAssign />} />}
+          {(leader || admin) && <Route path="/programme" element={<Schedule />} />}
+          {(leader || admin) && <Route path="/archives" element={<Archives />} />}
+          {(leader || admin) && <Route path="/rapport-dimanche" element={<SundayFigures />} />}
+          {(role === "shepherd" || admin) && <Route path="/equipe" element={<Team />} />}
+          {leader && <Route path="/famille" element={<FamilyHome />} />}
+          {admin && <Route path="/eglise" element={<Church />} />}
+          {admin && <Route path="/familles" element={<Families />} />}
+          {admin && <Route path="/reglages" element={<Settings />} />}
+          {role === "master" && <Route path="/campus" element={<Campuses />} />}
+          <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </Shell>
     </ScopeProvider>

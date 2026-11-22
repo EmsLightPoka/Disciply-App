@@ -7,7 +7,7 @@ import { Avatar, Sheet, Top, frError, useToast } from "../../components/ui";
 import { IPlus } from "../../components/Icons";
 
 export default function Families() {
-  const { families } = useSession();
+  const { families, campusId } = useSession();
   const { workers, active, workerName } = useScope();
   const toast = useToast();
   const [edit, setEdit] = useState<Family | "new" | null>(null);
@@ -19,7 +19,7 @@ export default function Families() {
   async function save() {
     setBusy(true);
     try {
-      if (edit === "new") await createFamily(name.trim(), shepherdId || null);
+      if (edit === "new") await createFamily(campusId!, name.trim(), shepherdId || null);
       else if (edit) await updateFamily(edit.id, { name: name.trim(), shepherdId: shepherdId || null });
       toast("Famille enregistrée"); setEdit(null);
     } catch (e) { toast(frError(e)); } finally { setBusy(false); }

@@ -7,13 +7,13 @@ import { Top, frError, useToast } from "../../components/ui";
 const slug = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "etape";
 
 export default function Settings() {
-  const { settings } = useSession();
+  const { settings, campusId } = useSession();
   const toast = useToast();
   const [s, setS] = useState<S>(settings);
   const [busy, setBusy] = useState(false);
   useEffect(() => setS(settings), [settings]);
-  const lines = (k: "absenceReasons" | "exitReasons" | "services") => s[k].join("\n");
-  const setLines = (k: "absenceReasons" | "exitReasons" | "services", v: string) => setS({ ...s, [k]: v.split("\n").map(x => x.trimStart()).filter((x, i, a) => x || i === a.length - 1) });
+  const lines = (k: "absenceReasons" | "exitReasons" | "services" | "formations" | "difficulties") => s[k].join("\n");
+  const setLines = (k: "absenceReasons" | "exitReasons" | "services" | "formations" | "difficulties", v: string) => setS({ ...s, [k]: v.split("\n").map(x => x.trimStart()).filter((x, i, a) => x || i === a.length - 1) });
   const setStep = (i: number, p: Partial<Step>) => setS({ ...s, steps: s.steps.map((x, j) => (j === i ? { ...x, ...p } : x)) });
   const move = (i: number, d: number) => { const st = [...s.steps]; const [x] = st.splice(i, 1); st.splice(i + d, 0, x); setS({ ...s, steps: st }); };
 
@@ -21,14 +21,14 @@ export default function Settings() {
     setBusy(true);
     const clean = (a: string[]) => a.map(x => x.trim()).filter(Boolean);
     try {
-      await saveSettings({ ...s, absenceReasons: clean(s.absenceReasons), exitReasons: clean(s.exitReasons), services: clean(s.services), steps: s.steps.filter(x => x.label.trim()) });
+      await saveSettings(campusId!, { ...s, formations: clean(s.formations), difficulties: clean(s.difficulties), absenceReasons: clean(s.absenceReasons), exitReasons: clean(s.exitReasons), services: clean(s.services), steps: s.steps.filter(x => x.label.trim()) });
       toast("Réglages enregistrés");
     } catch (e) { toast(frError(e)); } finally { setBusy(false); }
   }
 
   return (
     <div className="page">
-      <Top title="Réglages" />
+      <Top title="Réglages du campus" />
       <div className="card">
         <div className="field"><label htmlFor="cn">Nom de l'église</label><input id="cn" value={s.churchName} onChange={e => setS({ ...s, churchName: e.target.value })} /></div>
         <div className="field"><label htmlFor="th">Alerte après combien de dimanches d'absence de suite ?</label><input id="th" type="number" min={1} max={10} value={s.absenceThreshold} onChange={e => setS({ ...s, absenceThreshold: Math.max(1, Number(e.target.value) || 3) })} /></div>
@@ -53,7 +53,9 @@ export default function Settings() {
       <div className="card">
         <div className="field"><label htmlFor="ar">Motifs d'absence (un par ligne)</label><textarea id="ar" value={lines("absenceReasons")} onChange={e => setLines("absenceReasons", e.target.value)} /></div>
         <div className="field"><label htmlFor="er">Motifs de sortie (un par ligne)</label><textarea id="er" value={lines("exitReasons")} onChange={e => setLines("exitReasons", e.target.value)} /></div>
-        <div className="field"><label htmlFor="sv">Cultes (un par ligne)</label><textarea id="sv" value={lines("services")} onChange={e => setLines("services", e.target.value)} /></div>
+        <div className="field"><label htmlFor="sv">Cultes du dimanche (un par ligne)</label><textarea id="sv" value={lines("services")} onChange={e => setLines("services", e.target.value)} /></div>
+        <div className="field"><label htmlFor="fo">Formations suivies (une par ligne)</label><textarea id="fo" value={lines("formations")} onChange={e => setLines("formations", e.target.value)} /></div>
+        <div className="field"><label htmlFor="di">Types de difficultés (un par ligne)</label><textarea id="di" value={lines("difficulties")} onChange={e => setLines("difficulties", e.target.value)} /></div>
       </div>
       <div className="btnrow"><button className="btn primary" disabled={busy} onClick={save}>Enregistrer les réglages</button></div>
     </div>

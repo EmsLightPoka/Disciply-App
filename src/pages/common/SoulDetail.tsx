@@ -6,7 +6,9 @@ import { useDocument, useQuery } from "../../lib/hooks";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import type { Note, Soul } from "../../lib/types";
-import { addNote, assignSoul, cancelStep, establishSoul, exitSoul, reinstateSoul, transferSoul, updateSoul, validateStep } from "../../lib/api";
+import { addNote, cancelStep, establishSoul, exitSoul, reinstateSoul, reportDifficulty, resolveDifficulty, setFormation, transferSoul, updateSoul, validateStep } from "../../lib/api";
+import { isCampusAdmin, isLeader } from "../../lib/types";
+import AssignSheet from "../../components/AssignSheet";
 import { fullDate, lastSundays, shortDate, today } from "../../lib/dates";
 import { STATUS_LABEL, stepCount, telHref, waHref } from "../../lib/souls";
 import { Avatar, Loading, Sheet, Top, frError, useToast } from "../../components/ui";
@@ -14,14 +16,14 @@ import { IChat, IPhone, IPlus } from "../../components/Icons";
 import SoulForm from "./SoulForm";
 
 type Modal = null | { kind: "step"; stepId: string } | { kind: "cancel"; stepId: string } | { kind: "note" } | { kind: "edit" }
-  | { kind: "more" } | { kind: "assign" } | { kind: "transfer" } | { kind: "exit" } | { kind: "delete" } | { kind: "reinstate" };
+  | { kind: "more" } | { kind: "assign" } | { kind: "transfer" } | { kind: "exit" } | { kind: "delete" } | { kind: "difficulty" } | { kind: "formation"; name: string };
 
 export default function SoulDetail() {
   const { id = "" } = useParams();
   const nav = useNavigate();
   const toast = useToast();
   const { profile, settings, families, familyName } = useSession();
-  const { attendance, streak, workerName, workers } = useScope();
+  const { attendance, streak, workerName } = useScope();
   const soulQ = useDocument<Soul>(doc(db, "souls", id), [id]);
   const notesQ = useQuery<Note>(query(collection(db, "souls", id, "notes"), orderBy("createdAt", "desc")), [id]);
   const [modal, setModal] = useState<Modal>(null);
@@ -50,7 +52,8 @@ export default function SoulDetail() {
     finally { setBusy(false); }
   }
 
-  const makers = workers.filter(w => w.role === "maker" && w.active && w.familyId === s.familyId);
+  const manager = isLeader(me.role) || isCampusAdmin(me.role);
+  const [diffKind, setDiffKind] = [detail, setDetail];
   const step = modal && (modal.kind === "step" || modal.kind === "cancel") ? settings.steps.find(x => x.id === modal.stepId)! : null;
 
   return (
@@ -65,7 +68,7 @@ export default function SoulDetail() {
           {s.state === "established" && <span className="chip ok">Disciple affermi</span>}
           {abs >= settings.absenceThreshold && <span className="chip warn">{abs} absences de suite</span>}
         </div>
-        <div className="small">Famille {familyName(s.familyId)} · suivie par {workerName(s.makerId)}</div>
+        <div className="small">Famille {familyName(s.familyId)} · {s.makerId ? `suivie par ${workerName(s.makerId)}` : "pas encore attribuée"}</div>
       </div>
 
       {s.phone && <div className="actions2">
@@ -87,6 +90,22 @@ export default function SoulDetail() {
             </button>);
         })}
       </div></div>
+
+      <div className="eyebrow">Difficultés</div>
+      {s.difficulty ? (
+        <div className="card" style={{ borderColor: "var(--warn)" }}>
+          <div className="serve"><span className="chip warn">{s.difficulty.kind}</span><span className="small">signalée le {shortDate(s.difficulty.at)}</span></div>
+          {s.difficulty.text && <p style={{ margin: "8px 0 0" }}>{s.difficulty.text}</p>}
+          <div className="btnrow"><button className="btn ghost sm" onClick={() => run(() => resolveDifficulty(uid, s.id), "Difficulté marquée comme résolue")}>C'est résolu</button>
+            <button className="btn ghost sm" onClick={() => setModal({ kind: "difficulty" })}>Mettre à jour</button></div>
+        </div>
+      ) : <button className="btn ghost block" onClick={() => setModal({ kind: "difficulty" })}>Signaler une difficulté</button>}
+
+      <div className="eyebrow">Formations</div>
+      <div className="checks">{settings.formations.map(f => {
+        const st = s.formations?.[f]?.status;
+        return <button key={f} className={st ?? ""} onClick={() => setModal({ kind: "formation", name: f })}>{f}{st === "done" ? " · terminée" : st === "started" ? " · en cours" : ""}</button>;
+      })}</div>
 
       <div className="eyebrow">8 derniers dimanches</div>
       <div className="pills">{lastSundays(8).map(d => {
@@ -143,28 +162,36 @@ export default function SoulDetail() {
       {modal?.kind === "more" && (
         <Sheet title="Actions" onClose={close}>
           <div className="opts">
-            {s.state === "active" && me.role !== "maker" && <button onClick={() => setModal({ kind: "assign" })}>Confier à un faiseur</button>}
-            {s.state === "active" && me.role !== "maker" && <button onClick={() => setModal({ kind: "transfer" })}>Transférer vers une autre famille</button>}
+            {s.state === "active" && manager && <button onClick={() => setModal({ kind: "assign" })}>{s.makerId ? "Changer de faiseur" : "Attribuer à un faiseur"}</button>}
+            {s.state === "active" && manager && <button onClick={() => setModal({ kind: "transfer" })}>Transférer vers une autre famille</button>}
             {s.state === "active" && <button disabled={busy} onClick={() => run(() => establishSoul(uid, s.id), "Bravo ! Disciple affermi")}>Marquer comme disciple affermi{k < total && <span className="small">{k}/{total} étapes</span>}</button>}
             {s.state === "active" && <button onClick={() => setModal({ kind: "exit" })}>Sortir du suivi (archiver)</button>}
-            {s.state !== "active" && me.role !== "maker" && <button onClick={() => setModal({ kind: "reinstate" })}>Réintégrer dans le suivi</button>}
-            {me.role === "admin" && <button style={{ color: "var(--bad)" }} onClick={() => setModal({ kind: "delete" })}>Supprimer définitivement</button>}
+            {s.state !== "active" && manager && <button disabled={busy} onClick={() => run(() => reinstateSoul(uid, s.id), "Âme réintégrée : elle est dans À attribuer")}>Réintégrer dans le suivi</button>}
+            {isCampusAdmin(me.role) && <button style={{ color: "var(--bad)" }} onClick={() => setModal({ kind: "delete" })}>Supprimer définitivement</button>}
           </div>
-          {me.role !== "admin" && <p className="small" style={{ marginTop: 12 }}>Une âme n'est jamais supprimée : elle est archivée et peut être réintégrée.</p>}
+          {!isCampusAdmin(me.role) && <p className="small" style={{ marginTop: 12 }}>Une âme n'est jamais supprimée : elle est archivée et peut être réintégrée.</p>}
         </Sheet>)}
-      {(modal?.kind === "assign" || modal?.kind === "reinstate") && (
-        <Sheet title={modal.kind === "assign" ? `Qui suivra ${s.name.split(" ")[0]} ?` : "Réintégrer avec quel faiseur ?"} onClose={close}>
+      {modal?.kind === "assign" && <AssignSheet soul={s} onClose={close} />}
+      {modal?.kind === "difficulty" && (
+        <Sheet title="Signaler une difficulté" onClose={close}>
+          <p className="small" style={{ marginTop: 0 }}>Ton berger la verra dans ton rapport de la semaine.</p>
+          <div className="checks" style={{ marginBottom: 12 }}>{settings.difficulties.map(k => <button key={k} className={diffKind === k ? "started" : ""} onClick={() => setDiffKind(k)}>{k}</button>)}</div>
+          <div className="field"><label htmlFor="dt">Précisions</label><textarea id="dt" value={text} onChange={e => setText(e.target.value)} placeholder="Ce qui se passe, ce dont elle a besoin" /></div>
+          <button className="btn primary block" disabled={busy || !diffKind} onClick={() => run(() => reportDifficulty(me, s.id, diffKind, text.trim()), "Difficulté signalée")}>Signaler</button>
+        </Sheet>)}
+      {modal?.kind === "formation" && (
+        <Sheet title={modal.name} onClose={close}>
           <div className="opts">
-            {makers.map(w => <button key={w.id} disabled={busy} onClick={() => run(() => modal.kind === "assign" ? assignSoul(uid, s.id, w.id, w.name) : reinstateSoul(uid, s.id, w.id), modal.kind === "assign" ? `Confiée à ${w.name}` : "Âme réintégrée")}>{w.name}{w.id === s.makerId && <span className="chip na">Actuel</span>}</button>)}
-            {makers.length === 0 && <p className="small">Aucun faiseur dans cette famille. Invite d'abord un faiseur depuis Équipe.</p>}
-            <button disabled={busy} onClick={() => run(() => modal.kind === "assign" ? assignSoul(uid, s.id, null, "") : reinstateSoul(uid, s.id, null), "Enregistré")}>Sans faiseur pour l'instant</button>
+            <button disabled={busy} onClick={() => run(() => setFormation(uid, s.id, modal.name, "started"), `${modal.name} : commencée`)}>A commencé la formation</button>
+            <button disabled={busy} onClick={() => run(() => setFormation(uid, s.id, modal.name, "done"), `${modal.name} : terminée`)}>A terminé la formation</button>
+            {s.formations?.[modal.name] && <button disabled={busy} onClick={() => run(() => setFormation(uid, s.id, modal.name, null), "Formation retirée")}>Retirer</button>}
           </div>
         </Sheet>)}
       {modal?.kind === "transfer" && (
         <Sheet title="Transférer vers une famille" onClose={close}>
           <p className="small" style={{ marginTop: 0 }}>L'âme quitte la famille {familyName(s.familyId)}. Le berger de la famille d'accueil choisira son faiseur.</p>
           <div className="opts">{families.filter(f => f.id !== s.familyId).map(f => (
-            <button key={f.id} disabled={busy} onClick={() => run(async () => { await transferSoul(uid, s.id, f.id, f.name); if (me.role !== "admin") nav(-1); }, `Transférée vers ${f.name}`)}>{f.name}</button>))}</div>
+            <button key={f.id} disabled={busy} onClick={() => run(async () => { await transferSoul(uid, s.id, f.id, f.name); if (!isCampusAdmin(me.role)) nav(-1); }, `Transférée vers ${f.name}`)}>{f.name}</button>))}</div>
         </Sheet>)}
       {modal?.kind === "exit" && (
         <Sheet title="Pourquoi sortir du suivi ?" onClose={close}>

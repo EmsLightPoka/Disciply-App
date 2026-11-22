@@ -8,7 +8,7 @@ import { IPhone, IPlus } from "../../components/Icons";
 
 export default function Today() {
   const { profile, settings } = useSession();
-  const { active, attendance, streak, loading } = useScope();
+  const { active, attendance, streak, loading, openServices } = useScope();
   if (loading) return <Loading />;
 
   const isSunday = new Date().getDay() === 0;
@@ -32,6 +32,13 @@ export default function Today() {
         <span className="big">{active.length === 0 ? "Aucune âme confiée pour l'instant" : toPoint ? `${toPoint} âme${toPoint > 1 ? "s" : ""} à pointer` : "Pointage terminé"}</span>
         {active.length > 0 && <Link to="/dimanche" className="btn grad" style={{ alignSelf: "flex-start" }}>{isSunday && toPoint ? "Commencer le pointage" : "Ouvrir le pointage"}</Link>}
       </div>
+
+      {openServices.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div className="eyebrow" style={{ marginTop: 0 }}>Ta famille est de service</div>
+          <p style={{ margin: "0 0 10px" }}>{openServices.map(o => o.slot).join(", ")} : enregistre les nouveaux convertis et nouveaux arrivants d'aujourd'hui.</p>
+          <Link to="/ames/nouvelle" className="btn primary">Enregistrer une âme</Link>
+        </div>)}
 
       {alerts.length > 0 && <>
         <div className="eyebrow">À appeler en priorité</div>
@@ -72,8 +79,8 @@ export default function Today() {
         </div>
       </>}
 
-      {active.length === 0 && <div className="card empty" style={{ marginTop: 16 }}>Ton berger t'affectera des âmes. Tu peux aussi enregistrer une âme que tu as reçue au culte avec le bouton +.</div>}
-      <Link to="/ames/nouvelle" className="fab" aria-label="Enregistrer une nouvelle âme"><IPlus /></Link>
+      {active.length === 0 && <div className="card empty" style={{ marginTop: 16 }}>Ton berger ou son assistant t'attribuera des âmes. Quand ta famille est de service, tu peux enregistrer les nouvelles âmes du jour jusqu'à minuit.</div>}
+      {openServices.length > 0 && <Link to="/ames/nouvelle" className="fab" aria-label="Enregistrer une nouvelle âme"><IPlus /></Link>}
     </div>
   );
 }

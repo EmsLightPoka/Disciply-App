@@ -1,11 +1,19 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type Role = "admin" | "shepherd" | "maker";
+export type Role = "master" | "admin" | "shepherd" | "assistant" | "maker";
 export const ROLE_LABEL: Record<Role, string> = {
-  admin: "Responsable général",
+  master: "Administrateur de l'application",
+  admin: "Pasteur du campus",
   shepherd: "Berger de famille",
+  assistant: "Assistant berger",
   maker: "Faiseur de disciples"
 };
+/** Berger ou assistant : gèrent la famille. */
+export const isLeader = (r?: Role) => r === "shepherd" || r === "assistant";
+/** Pasteur du campus ou administrateur de l'application. */
+export const isCampusAdmin = (r?: Role) => r === "admin" || r === "master";
+
+export interface Campus { id: string; name: string; city?: string; }
 
 export interface UserProfile {
   id: string;
@@ -13,7 +21,9 @@ export interface UserProfile {
   email: string;
   phone?: string;
   role: Role;
+  campusId: string | null;
   familyId: string | null;
+  gender?: "F" | "H";
   active: boolean;
   theme?: "light" | "dark" | "system";
   inviteId?: string;
@@ -22,6 +32,7 @@ export interface UserProfile {
 
 export interface Family {
   id: string;
+  campusId: string;
   name: string;
   shepherdId?: string | null;
 }
@@ -40,6 +51,67 @@ export interface Settings {
   absenceReasons: string[];
   exitReasons: string[];
   services: string[];
+  formations: string[];
+  difficulties: string[];
+}
+
+/** Une famille qui sert à un culte donné. Les fenêtres d'enregistrement sont calculées à la saisie du programme. */
+export interface ServiceSlot {
+  id: string;
+  campusId: string;
+  date: string;          // AAAA-MM-JJ
+  slot: string;          // ex. « 1er culte »
+  familyId: string;
+  opensAt: Timestamp;    // début du jour du culte
+  makersUntil: Timestamp; // fin du jour du culte : limite pour les faiseurs
+  leadersUntil: Timestamp; // lundi midi : limite pour le berger et l'assistant
+}
+
+export interface FormationRecord { status: "started" | "done"; date: string; }
+
+export interface Notification {
+  id: string;
+  campusId: string;
+  userId: string;
+  kind: "assigned" | "report" | "info";
+  title: string;
+  body: string;
+  link?: string;
+  read: boolean;
+  createdAt?: Timestamp;
+  by: string;
+}
+
+export interface MakerReport {
+  id: string;            // semaine_faiseur
+  campusId: string;
+  familyId: string;
+  makerId: string;
+  makerName: string;
+  week: string;          // dimanche de la semaine
+  souls: number;
+  present: number;
+  absent: number;
+  notPointed: number;
+  newAssigned: number;
+  difficulties: { soulName: string; text: string }[];
+  formations: { soulName: string; text: string }[];
+  comment: string;
+  submittedAt?: Timestamp;
+}
+
+export interface FamilyReport {
+  id: string;            // semaine_famille
+  campusId: string;
+  familyId: string;
+  familyName: string;
+  week: string;
+  text: string;
+  totals: { souls: number; present: number; absent: number; newSouls: number; reports: number; makers: number };
+  comment: string;
+  sentBy: string;
+  sentByName: string;
+  sentAt?: Timestamp;
 }
 
 export type SoulStatus = "NC" | "NA";
@@ -70,6 +142,11 @@ export interface Soul {
   makerId: string | null;
   state: SoulState;
   steps: Record<string, StepRecord>;
+  campusId: string;
+  serviceId?: string;
+  makersUntil?: Timestamp;
+  formations?: Record<string, FormationRecord>;
+  difficulty?: { kind: string; text: string; at: string } | null;
   exitReason?: string;
   exitDate?: string;
   inviter?: string;
@@ -82,6 +159,7 @@ export interface Soul {
 
 export interface Attendance {
   id: string;
+  campusId: string;
   soulId: string;
   familyId: string;
   makerId: string | null;
@@ -93,6 +171,7 @@ export interface Attendance {
 
 export interface Note {
   id: string;
+  kind?: "note" | "difficulty" | "formation" | "call";
   text: string;
   authorId: string;
   authorName: string;
@@ -104,6 +183,9 @@ export interface Invitation {
   name: string;
   email: string;
   role: Role;
+  campusId: string | null;
+  campusName?: string;
+  gender?: "F" | "H";
   familyId: string | null;
   familyName?: string;
   createdBy: string;
@@ -126,5 +208,7 @@ export const DEFAULT_SETTINGS: Settings = {
   ],
   absenceReasons: ["Malade", "En voyage", "Travail", "Injoignable", "Autre culte", "Autre raison"],
   exitReasons: ["Déménagement", "Injoignable", "A rejoint une autre église", "Ne souhaite plus être suivie", "En intercession", "Autre raison"],
-  services: ["1er culte", "2e culte", "3e culte", "Culte EJP"]
+  services: ["1er culte", "2e culte", "3e culte", "Culte EJP"],
+  formations: ["Académie 101", "Académie 201", "Académie 301", "PCNC"],
+  difficulties: ["Problème de santé", "Difficulté financière", "Problème familial", "Doute spirituel", "Opposition de l'entourage", "Éloignement géographique", "Autre"]
 };

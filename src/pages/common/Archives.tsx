@@ -1,3 +1,4 @@
+import { isCampusAdmin } from "../../lib/types";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useSession } from "../../lib/session";
@@ -24,7 +25,7 @@ export default function Archives() {
       <div className="filters"><button aria-pressed={tab === "exited"} onClick={() => setTab("exited")}>Sorties ({exited})</button><button aria-pressed={tab === "established"} onClick={() => setTab("established")}>Affermis ({est})</button></div>
       <div className="list">{list.map(s => (
         <Link key={s.id} className="row" to={`/ames/${s.id}`}><Avatar name={s.name} />
-          <span className="main-col"><div className="name">{s.name}</div><div className="meta">{s.exitReason ?? "Disciple affermi"}{s.exitDate ? ` · ${shortDate(s.exitDate)}` : ""}{profile!.role === "admin" ? ` · ${familyName(s.familyId)}` : ""}</div></span></Link>))}
+          <span className="main-col"><div className="name">{s.name}</div><div className="meta">{s.exitReason ?? "Disciple affermi"}{s.exitDate ? ` · ${shortDate(s.exitDate)}` : ""}{isCampusAdmin(profile!.role) ? ` · ${familyName(s.familyId)}` : ""}</div></span></Link>))}
         {list.length === 0 && <div className="empty">Rien pour l'instant.</div>}</div>
       <p className="small">Ouvre une fiche puis Actions pour réintégrer une âme. Taux de maintien : âmes encore suivies ou affermies, sur toutes les âmes reçues.</p>
     </div>

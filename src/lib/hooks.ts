@@ -9,9 +9,18 @@ export function useQuery<T>(q: Query | null, deps: unknown[]): Live<T[]> {
   useEffect(() => {
     if (!q) { setState({ data: [], loading: false, error: null }); return; }
     setState(s => ({ ...s, loading: true }));
-    return onSnapshot(q,
-      snap => setState({ data: snap.docs.map(d => ({ id: d.id, ...d.data() }) as T), loading: false, error: null }),
-      error => { console.error(error); setState({ data: [], loading: false, error }); });
+    // En cas de refus (droits qui viennent de changer), on réessaie quelques fois.
+    let stop = () => {}, tries = 0, timer: ReturnType<typeof setTimeout> | undefined;
+    const listen = () => {
+      stop = onSnapshot(q,
+        snap => { tries = 0; setState({ data: snap.docs.map(d => ({ id: d.id, ...d.data() }) as T), loading: false, error: null }); },
+        error => {
+          if (tries++ < 3) { timer = setTimeout(listen, 1500 * tries); return; }
+          console.error(error); setState({ data: [], loading: false, error });
+        });
+    };
+    listen();
+    return () => { clearTimeout(timer); stop(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
   return state;

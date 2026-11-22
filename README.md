@@ -7,13 +7,20 @@ Elle s'utilise dans le navigateur, sur téléphone comme sur ordinateur, et s'in
 
 | Rôle | Ce qu'il voit et fait |
 | --- | --- |
-| Responsable général | Toute l'église : familles, ouvriers et invitations, toutes les âmes, rapports, archives, réglages (étapes, motifs, cultes) |
-| Berger de famille | Sa famille : âmes, affectation aux faiseurs, pointage, transferts, invitation des faiseurs |
-| Faiseur de disciples | Ses âmes : Aujourd'hui (à appeler, absents, nouvelles âmes), pointage du dimanche, fiche âme, étapes, notes |
+| Administrateur de l'application | Tous les campus : crée les campus, passe de l'un à l'autre, nomme les pasteurs |
+| Pasteur du campus | Son campus : familles, programme de service, ouvriers, toutes les âmes, rapports reçus des bergers, réglages |
+| Berger de famille | Sa famille : âmes, attribution aux faiseurs, pointage, invitation des faiseurs, nomination de l'assistant, rapport compilé |
+| Assistant berger | Comme le berger, sauf inviter et nommer |
+| Faiseur de disciples | Ses âmes : Aujourd'hui, pointage, fiche âme (étapes, formations, difficultés), rapport du lundi |
 
+- **Plusieurs campus.** Toutes les données portent un campus ; un campus ne voit jamais celles d'un autre.
+- **Programme de service.** Chaque mois, le pasteur choisit la famille qui sert à chaque culte du dimanche.
+- **Enregistrement limité.** Seule la famille de service enregistre les nouvelles âmes (NC et NA) : les faiseurs jusqu'à minuit le jour même, le berger et l'assistant jusqu'au lundi midi, le pasteur à tout moment. Le serveur refuse en dehors de ces fenêtres.
+- **À attribuer.** Les âmes enregistrées arrivent dans la liste À attribuer de la famille. Le berger ou l'assistant choisit le faiseur, proposé selon le sexe de l'âme (modifiable). Le faiseur reçoit une notification avec le contact.
+- **Rapport du lundi.** Chaque faiseur envoie son rapport ; le berger voit qui l'a envoyé, obtient un texte compilé au format fixe et l'envoie au pasteur.
+- **Notifications** dans l'application (cloche). Les notifications sur le téléphone viendront ensuite (elles demandent le forfait Blaze et des Cloud Functions).
 - Connexion par e-mail et mot de passe. Les comptes se créent uniquement par invitation (lien à envoyer par WhatsApp).
-- Le tout premier compte, créé sur `/installation`, devient responsable général. Cette page se ferme ensuite.
-- Les droits sont vérifiés par le serveur (`firestore.rules`) : un faiseur ne lit que ses âmes, un berger que sa famille.
+- Le tout premier compte, créé sur `/installation`, devient administrateur de l'application avec le premier campus. Cette page se ferme ensuite.
 - Le pointage fonctionne sans réseau et part dès que la connexion revient.
 - Mode jour (fond blanc) et mode nuit (fond violet), au choix dans Profil.
 

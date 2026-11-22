@@ -1,3 +1,4 @@
+import { isCampusAdmin } from "../../lib/types";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useSession } from "../../lib/session";
@@ -38,7 +39,7 @@ export default function SoulsList() {
       <div className="filters">{FL.map(([k, l]) => <button key={k} aria-pressed={f === k} onClick={() => setF(k)}>{l}</button>)}</div>
       {role !== "maker" && (
         <div className="grid2" style={{ marginBottom: 6 }}>
-          {role === "admin" && <div className="field" style={{ margin: 0 }}><select aria-label="Famille" value={fam} onChange={e => { setFam(e.target.value); setMaker(""); }}><option value="">Toutes les familles</option>{families.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>}
+          {isCampusAdmin(role) && <div className="field" style={{ margin: 0 }}><select aria-label="Famille" value={fam} onChange={e => { setFam(e.target.value); setMaker(""); }}><option value="">Toutes les familles</option>{families.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>}
           <div className="field" style={{ margin: 0 }}><select aria-label="Faiseur" value={maker} onChange={e => setMaker(e.target.value)}><option value="">Tous les faiseurs</option>{makers.map(w => <option key={w.id} value={w.id}>{w.name}</option>)}</select></div>
         </div>
       )}
@@ -55,7 +56,7 @@ export default function SoulsList() {
                   <span className={"chip " + s.status.toLowerCase()} title={STATUS_LABEL[s.status]}>{STATUS_LABEL[s.status]}</span>
                   {k >= settings.absenceThreshold && <span className="chip warn">{k} absences</span>}
                   {role !== "maker" && <span>{workerName(s.makerId)}</span>}
-                  {role === "admin" && <span>· {familyName(s.familyId)}</span>}
+                  {isCampusAdmin(role) && <span>· {familyName(s.familyId)}</span>}
                 </div>
               </span>
               <Dots n={stepCount(s, settings)} total={settings.steps.length} />

@@ -18,3 +18,6 @@ export const IShare = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><circle c
 export const IArchive = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><rect x="3" y="4" width="18" height="5" rx="1" /><path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" /></svg>;
 export const IReport = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6M8 13h8M8 17h5" /></svg>;
 export const IWorker = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><circle cx="12" cy="7" r="4" /><path d="M5 21v-2a7 7 0 0 1 14 0v2M16 11l2 2 4-4" /></svg>;
+export const IBell = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg>;
+export const ISchedule = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M8 3v4M16 3v4M3.5 10h17M8 14h3M8 17h6" /></svg>;
+export const IGlobe = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>;

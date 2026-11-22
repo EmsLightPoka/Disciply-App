@@ -35,8 +35,8 @@ export default function Login() {
           <button className="btn primary block" disabled={busy}>{busy ? "Connexion…" : "Se connecter"}</button>
         </form>
         <div className="links"><Link to="/mot-de-passe-oublie">Mot de passe oublié ?</Link></div>
-        <p className="small" style={{ marginTop: 18 }}>Pas encore de compte ? Demande une invitation à ton berger ou au responsable. Tu recevras un lien pour créer ton compte.</p>
-        {needsSetup && <p className="small"><Link to="/installation">Première utilisation : créer le compte du responsable</Link></p>}
+        <p className="small" style={{ marginTop: 18 }}>Pas encore de compte ? Demande une invitation à ton berger ou à ton pasteur. Tu recevras un lien pour créer ton compte.</p>
+        {needsSetup && <p className="small"><Link to="/installation">Première utilisation : créer le compte administrateur</Link></p>}
       </div>
     </div>
   );

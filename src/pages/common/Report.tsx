@@ -1,3 +1,4 @@
+import { isCampusAdmin } from "../../lib/types";
 import { useMemo, useState } from "react";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
@@ -7,7 +8,7 @@ import { IShare } from "../../components/Icons";
 
 /** Rapport du dimanche : nouvelles âmes par culte et présence des âmes suivies. */
 export default function Report() {
-  const { profile, settings, myFamily } = useSession();
+  const { profile, settings, myFamily, campus } = useSession();
   const { souls, active, attendance } = useScope();
   const toast = useToast();
   const [date, setDate] = useState(currentSunday());
@@ -24,7 +25,7 @@ export default function Report() {
     return { arrived, byService, pointed: pointed.length, present };
   }, [souls, active, attendance, date, settings.services]);
 
-  const scopeName = profile!.role === "admin" ? settings.churchName : myFamily ? `Famille ${myFamily.name}` : "";
+  const scopeName = isCampusAdmin(profile!.role) ? (campus?.name ? `Campus ${campus.name}` : settings.churchName) : myFamily ? `Famille ${myFamily.name}` : "";
   const totalNC = r.byService.reduce((a, b) => a + b.nc, 0), totalNA = r.byService.reduce((a, b) => a + b.na, 0);
   const pct = r.pointed ? Math.round((r.present / r.pointed) * 100) : 0;
   const text = [
@@ -37,7 +38,7 @@ export default function Report() {
 
   return (
     <div className="page">
-      <Top title="Rapport du dimanche" sub={scopeName} />
+      <Top title="Chiffres du dimanche" sub={scopeName} />
       <div className="filters">{lastSundays(5).reverse().map(d => <button key={d} aria-pressed={d === date} onClick={() => setDate(d)}>{fullDate(d).replace(/ \d{4}$/, "")}</button>)}</div>
       <div className="grid2 grid4" style={{ marginTop: 8 }}>
         <div className="stat"><div className="v">{totalNC}</div><div className="l">nouveaux convertis</div></div>
