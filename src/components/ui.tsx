@@ -88,9 +88,17 @@ export function frError(e: unknown): string {
     "auth/weak-password": "Le mot de passe doit faire au moins 8 caractères.",
     "auth/too-many-requests": "Trop d'essais. Réessaie dans quelques minutes.",
     "auth/network-request-failed": "Pas de connexion internet. Vérifie ton réseau.",
-    "permission-denied": "Tu n'as pas le droit de faire cette action."
+    "auth/operation-not-allowed": "La connexion par e-mail n'est pas activée dans Firebase (Authentication, Email/Password).",
+    "auth/configuration-not-found": "Firebase Authentication n'est pas encore activé sur ce projet.",
+    "auth/admin-restricted-operation": "La création de comptes est désactivée dans Firebase Authentication.",
+    "auth/unauthorized-domain": "Ce site n'est pas autorisé dans Firebase Authentication (domaines autorisés).",
+    "auth/api-key-not-valid.-please-pass-a-valid-api-key.": "La configuration Firebase du site n'est pas valide.",
+    "permission-denied": "Tu n'as pas le droit de faire cette action.",
+    "failed-precondition": "La base Firestore n'est pas prête. Vérifie qu'elle est bien créée.",
+    "not-found": "La base Firestore est introuvable. Vérifie qu'elle est bien créée.",
+    "unavailable": "Le serveur ne répond pas. Vérifie ta connexion et réessaie."
   };
-  return map[code] ?? "Une erreur est survenue. Réessaie.";
+  return map[code] ?? `Une erreur est survenue. Réessaie.${code ? ` (code : ${code})` : ""}`;
 }
 
 export async function copyText(text: string): Promise<boolean> {

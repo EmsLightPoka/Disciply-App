@@ -1,7 +1,7 @@
 import {
   addDoc, arrayUnion, collection, deleteDoc, deleteField, doc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db } from "./firebase";
 import type { FamilyReport, Invitation, MakerReport, Role, ServiceSlot, Settings, Soul, UserProfile } from "./types";
 import { DEFAULT_SETTINGS } from "./types";
@@ -13,8 +13,15 @@ const hist = (by: string, text: string) => arrayUnion({ at: new Date().toISOStri
 // ---------- Installation et comptes ----------
 /** Le tout premier compte : administrateur de l'application, avec le premier campus. */
 export async function bootstrapMaster(name: string, email: string, password: string, campusName: string, city: string) {
-  const user = auth.currentUser && auth.currentUser.email?.toLowerCase() === email.toLowerCase()
-    ? auth.currentUser : (await createUserWithEmailAndPassword(auth, email, password)).user;
+  let user = auth.currentUser && auth.currentUser.email?.toLowerCase() === email.toLowerCase() ? auth.currentUser : null;
+  if (!user) {
+    try { user = (await createUserWithEmailAndPassword(auth, email, password)).user; }
+    catch (e) {
+      // Un essai précédent a pu créer le compte sans finir l'installation : on reprend avec le même mot de passe.
+      if ((e as { code?: string }).code !== "auth/email-already-in-use") throw e;
+      user = (await signInWithEmailAndPassword(auth, email, password)).user;
+    }
+  }
   await updateProfile(user, { displayName: name });
   const b = writeBatch(db);
   b.set(doc(db, "users", user.uid), { name, email, role: "master", campusId: null, familyId: null, active: true, createdAt: serverTimestamp() });

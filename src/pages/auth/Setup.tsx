@@ -23,7 +23,7 @@ export default function Setup() {
     if (pw.length < 8) return setErr("Le mot de passe doit faire au moins 8 caractères.");
     setBusy(true);
     try { await bootstrapMaster(name.trim(), email.trim(), pw, campus.trim(), city.trim()); }
-    catch (x) { setErr(frError(x)); setBusy(false); }
+    catch (x) { console.error(x); setErr(frError(x)); setBusy(false); }
   }
 
   if (open === null) return <Loading />;
