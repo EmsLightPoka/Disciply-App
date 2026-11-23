@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useSearchParams } from "react-router-dom";
 import { collection, deleteDoc, doc, query, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useQuery } from "../../lib/hooks";
@@ -21,7 +22,8 @@ export default function Team() {
     ? query(collection(db, "invitations"), where("campusId", "==", campusId))
     : query(collection(db, "invitations"), where("campusId", "==", campusId), where("familyId", "==", me.familyId ?? "")), [me.id, campusId]);
   const pending = invQ.data.filter(i => !i.usedBy);
-  const [showInvite, setShowInvite] = useState(false);
+  const [params] = useSearchParams();
+  const [showInvite, setShowInvite] = useState(params.get("inviter") === "1");
   const [created, setCreated] = useState<{ id: string; name: string } | null>(null);
   const [edit, setEdit] = useState<UserProfile | null>(null);
   const [famFilter, setFamFilter] = useState("");

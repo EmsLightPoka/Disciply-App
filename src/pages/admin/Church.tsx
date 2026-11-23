@@ -4,7 +4,7 @@ import { useScope } from "../../lib/scope";
 import { currentSunday } from "../../lib/dates";
 import { stepCount } from "../../lib/souls";
 import { Loading, Top } from "../../components/ui";
-import { IChart, ICheck, ISpark, IUsers } from "../../components/Icons";
+import { IChart, ICheck, IPlus, ISpark, IUsers } from "../../components/Icons";
 
 export default function Church() {
   const { settings, families, campus } = useSession();
@@ -25,10 +25,10 @@ export default function Church() {
 
   return (
     <div className="page wide">
-      <Top title="Vue du campus" sub={campus?.name ? `Campus ${campus.name}` : settings.churchName} />
+      <Top title="Vue du campus" sub={campus?.name ? `Campus ${campus.name}` : settings.churchName} right={families.length > 0 ? <Link to="/equipe?inviter=1" className="btn primary sm"><IPlus />Ouvrier</Link> : undefined} />
       {families.length === 0 && <div className="hero" style={{ marginBottom: 16 }}>
         <span className="big">Pour commencer, crée les familles de disciples</span>
-        <span className="small">Ensuite, invite un berger pour chaque famille. Les bergers inviteront leurs faiseurs.</span>
+        <span className="small">Ensuite, ajoute les ouvriers : un berger pour chaque famille, puis les faiseurs de disciples (bouton « + Ouvrier »).</span>
         <Link to="/familles" className="btn grad" style={{ alignSelf: "flex-start" }}>Créer les familles</Link>
       </div>}
       <div className="grid2 grid4">
