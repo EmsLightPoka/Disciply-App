@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { IBack, IBell } from "./Icons";
 import { useSession } from "../lib/session";
 import { useScope } from "../lib/scope";
@@ -35,6 +35,7 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
 /** En-tête violet de chaque écran : où je suis (famille, campus), notifications, profil, titre. */
 export function Top({ title, sub, back, right, kicker }: { title: string; sub?: ReactNode; back?: boolean; right?: ReactNode; kicker?: ReactNode }) {
   const nav = useNavigate();
+  const loc = useLocation();
   const { profile, myFamily, campus } = useSession();
   const { notifications } = useScope();
   const unread = notifications.filter(n => !n.read).length;
@@ -46,7 +47,7 @@ export function Top({ title, sub, back, right, kicker }: { title: string; sub?: 
       <div className="hd-bar">
         {back
           ? <button className="hd-btn" onClick={() => (history.length > 1 ? nav(-1) : nav("/"))} aria-label="Retour"><IBack /></button>
-          : <span className="ctx">{admin ? <>{profile?.role === "master" ? "Administration" : "Pasteur"} · <b>{campus?.name ?? "Aucun campus"}</b></> : <><b>{myFamily ? `Famille ${myFamily.name}` : "Sans famille"}</b>{campus ? ` · ${campus.name}` : ""}</>}</span>}
+          : <span className="ctx">{admin ? <>{profile?.role === "master" ? "Administration" : "Pasteur"} · <b>{profile?.role === "master" && loc.pathname === "/campus" ? "Tous les campus" : campus?.name ?? "Aucun campus"}</b></> : <><b>{myFamily ? `Famille ${myFamily.name}` : "Sans famille"}</b>{campus ? ` · ${campus.name}` : ""}</>}</span>}
         <span className="hd-tools">
           {!title && right}
           <Link to="/notifications" className="hd-btn" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`}><IBell />{unread > 0 && <span className="hd-dot" />}</Link>

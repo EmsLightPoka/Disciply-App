@@ -22,7 +22,7 @@ export default function Campuses() {
   }
   return (
     <div className="page">
-      <Top title="Tous les campus" sub="Choisis le campus sur lequel tu travailles." right={<button className="btn primary sm" style={{ flex: "none" }} onClick={() => setOpen(true)}><IPlus />Nouveau</button>} />
+      <Top title="Tous les campus" sub="Tu vois tous les campus de l'église. Touche un campus pour entrer dans sa vue, ou crée-en un nouveau." right={<button className="btn primary sm" style={{ flex: "none" }} onClick={() => setOpen(true)}><IPlus />Nouveau</button>} />
       <div className="list">{campuses.map(c => (
         <button key={c.id} className="row" onClick={async () => { await switchCampus(profile!.id, c.id); nav("/eglise"); }}>
           <Avatar name={c.name} /><span className="main-col"><div className="name">{c.name}</div><div className="meta">{c.city}</div></span>

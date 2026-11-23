@@ -4,15 +4,15 @@ import { useSession } from "../lib/session";
 import { useScope } from "../lib/scope";
 import { ROLE_LABEL, type Role } from "../lib/types";
 import { Logo } from "./ui";
-import { IArchive, IBell, ICal, IChart, IChurch, IGear, IGlobe, IHome, IInbox, IReport, ISchedule, IPlus, IUser, IUsers, IWorker } from "./Icons";
+import { IArchive, IBell, ICal, IChart, IChurch, IGear, IGlobe, IHome, IInbox, IReport, ISchedule, IPlus, IMenu, IUser, IUsers, IWorker } from "./Icons";
 
-type Item = [to: string, label: string, icon: ReactNode, mobile: boolean];
+type Item = [to: string, label: string, icon: ReactNode, mobile: boolean, short?: string];
 
 const leaderNav: Item[] = [
   ["/famille", "Famille", <IHome />, true],
-  ["/a-attribuer", "À attribuer", <IInbox />, true],
-  ["/ames", "Âmes", <IUsers />, false],
   ["/dimanche", "Dimanche", <ICal />, true],
+  ["/a-attribuer", "À attribuer", <IInbox />, false],
+  ["/ames", "Âmes", <IUsers />, false],
   ["/rapports", "Rapports", <IReport />, true],
   ["/equipe", "Équipe", <IWorker />, false],
   ["/programme", "Programme", <ISchedule />, false],
@@ -22,7 +22,7 @@ const adminNav: Item[] = [
   ["/eglise", "Campus", <IChurch />, true],
   ["/programme", "Programme", <ISchedule />, true],
   ["/familles", "Familles", <IChart />, false],
-  ["/equipe", "Ouvriers", <IWorker />, true],
+  ["/equipe", "Ouvriers", <IWorker />, false],
   ["/ames", "Âmes", <IUsers />, false],
   ["/a-attribuer", "À attribuer", <IInbox />, false],
   ["/rapports", "Rapports", <IReport />, true],
@@ -40,8 +40,12 @@ const NAV: Record<Role, Item[]> = {
   shepherd: leaderNav,
   assistant: leaderNav.filter(i => i[0] !== "/equipe"),
   admin: adminNav,
-  master: [["/campus", "Tous les campus", <IGlobe />, false], ...adminNav]
+  master: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/programme" ? [i[0], i[1], i[2], false] : i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)]
 };
+
+/** Tous les liens du rôle, pour la page « Plus » sur téléphone. */
+export function navItems(role: Role): Item[] { return NAV[role]; }
+const hasMore = (role: Role) => role !== "maker";
 
 export default function Shell({ children }: { children: ReactNode }) {
   const { profile, myFamily, campus } = useSession();
@@ -51,7 +55,7 @@ export default function Shell({ children }: { children: ReactNode }) {
   const unread = notifications.filter(n => !n.read).length;
   // Le bouton central « + » : la famille sert aujourd'hui, ou le pasteur (qui peut enregistrer à tout moment).
   const canRegister = openServices.length > 0 || profile.role === "admin" || profile.role === "master";
-  const tabs = items.filter(i => i[3]);
+  const tabs: Item[] = [...items.filter(i => i[3]), ...(hasMore(profile.role) ? [["/plus", "Plus", <IMenu />, true] as Item] : [])];
   const half = Math.ceil(tabs.length / 2);
   const where = profile.role === "admin" || profile.role === "master"
     ? campus?.name ?? "Aucun campus choisi"
@@ -70,9 +74,9 @@ export default function Shell({ children }: { children: ReactNode }) {
         {children}
       </div>
       <nav className="tabbar" aria-label="Navigation">
-        {tabs.slice(0, half).map(([to, label, icon]) => <NavLink key={to} to={to}>{icon}<span>{label}</span></NavLink>)}
+        {tabs.slice(0, half).map(([to, label, icon, , short]) => <NavLink key={to} to={to}>{icon}<span>{short ?? label}</span></NavLink>)}
         {canRegister && <Link to="/ames/nouvelle" className="tab-fab" aria-label="Enregistrer une nouvelle âme"><IPlus /></Link>}
-        {tabs.slice(half).map(([to, label, icon]) => <NavLink key={to} to={to}>{icon}<span>{label}</span></NavLink>)}
+        {tabs.slice(half).map(([to, label, icon, , short]) => <NavLink key={to} to={to}>{icon}<span>{short ?? label}</span></NavLink>)}
       </nav>
     </div>
   );

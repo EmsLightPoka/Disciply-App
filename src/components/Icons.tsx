@@ -24,3 +24,4 @@ export const IGlobe = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><circle c
 export const ICheck = (x: P) => <svg viewBox="0 0 24 24" {...p} strokeWidth={2.2} {...x}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>;
 export const IAlert = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4M12 17.5v.01" /></svg>;
 export const ISpark = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6" /></svg>;
+export const IMenu = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><rect x="4" y="4" width="6.5" height="6.5" rx="1.8" /><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.8" /><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.8" /><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.8" /></svg>;

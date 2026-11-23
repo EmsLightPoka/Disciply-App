@@ -18,6 +18,7 @@ import SundayFigures from "./pages/common/Report";
 import Reports from "./pages/common/Reports";
 import Notifications from "./pages/common/Notifications";
 import Profile from "./pages/common/Profile";
+import More from "./pages/common/More";
 import FamilyHome from "./pages/shepherd/FamilyHome";
 import ToAssign from "./pages/shepherd/ToAssign";
 import Team from "./pages/common/Team";
@@ -28,10 +29,10 @@ import Settings from "./pages/admin/Settings";
 import Campuses from "./pages/admin/Campuses";
 import Archives from "./pages/common/Archives";
 
-const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/eglise" };
+const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/campus" };
 
 export default function App() {
-  const { ready, user, profile, campusId } = useSession();
+  const { ready, user, profile } = useSession();
   const loc = useLocation();
   if (!ready) return <Loading />;
 
@@ -58,7 +59,7 @@ export default function App() {
 
   const role = profile.role;
   const admin = isCampusAdmin(role), leader = isLeader(role);
-  const home = role === "master" && !campusId ? "/campus" : HOME[role];
+  const home = HOME[role];
   return (
     <ScopeProvider>
       <Shell>
@@ -71,6 +72,7 @@ export default function App() {
           <Route path="/rapports" element={<Reports />} />
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/profil" element={<Profile />} />
+          <Route path="/plus" element={<More />} />
           {role === "maker" && <Route path="/aujourdhui" element={<Today />} />}
           {(leader || admin) && <Route path="/a-attribuer" element={<ToAssign />} />}
           {(leader || admin) && <Route path="/programme" element={<Schedule />} />}
