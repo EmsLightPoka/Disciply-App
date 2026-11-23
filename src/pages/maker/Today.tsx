@@ -3,8 +3,8 @@ import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { cap, currentSunday, longDate, nextSunday, today } from "../../lib/dates";
 import { nextStep, stepCount, telHref } from "../../lib/souls";
-import { Avatar, Dots, Loading } from "../../components/ui";
-import { IPhone, IPlus } from "../../components/Icons";
+import { Avatar, Dots, Loading, Top } from "../../components/ui";
+import { ICal, IPhone, IPlus } from "../../components/Icons";
 
 export default function Today() {
   const { profile, settings } = useSession();
@@ -23,11 +23,10 @@ export default function Today() {
 
   return (
     <div className="page">
-      <p className="small" style={{ margin: "6px 0 0" }}>{cap(longDate(today()))}</p>
-      <div className="top"><h1>Bonjour {first}</h1></div>
-      <p className="verse" style={{ margin: "-8px 0 16px" }}>«&nbsp;Allez, faites de toutes les nations des disciples.&nbsp;»<cite>Matthieu 28.19</cite></p>
+      <Top kicker={cap(longDate(today()))} title={`Bonjour ${first}`} sub={<p className="verse">«&nbsp;Allez, faites de toutes les nations des disciples.&nbsp;»<cite>Matthieu 28.19</cite></p>} />
 
-      <div className="hero">
+      <div className="card today">
+        <div className="ico-g"><ICal /></div>
         <span className="small">{isSunday ? "Aujourd'hui, " : "Prochain culte : "}{longDate(sunday)}</span>
         <span className="big">{active.length === 0 ? "Aucune âme confiée pour l'instant" : toPoint ? `${toPoint} âme${toPoint > 1 ? "s" : ""} à pointer` : "Pointage terminé"}</span>
         {active.length > 0 && <Link to="/dimanche" className="btn grad" style={{ alignSelf: "flex-start" }}>{isSunday && toPoint ? "Commencer le pointage" : "Ouvrir le pointage"}</Link>}

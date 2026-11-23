@@ -3,7 +3,7 @@ import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { currentSunday } from "../../lib/dates";
 import { Avatar, Loading, Top } from "../../components/ui";
-import { IPlus } from "../../components/Icons";
+import { IAlert, ICheck, IInbox, IPlus, IUsers } from "../../components/Icons";
 
 export default function FamilyHome() {
   const { profile, myFamily, settings } = useSession();
@@ -21,10 +21,10 @@ export default function FamilyHome() {
     <div className="page">
       <Top title={myFamily ? `Famille ${myFamily.name}` : "Ma famille"} sub={`Bonjour ${profile!.name.split(" ")[0]}`} />
       <div className="grid2 grid4">
-        <Link to="/ames" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="v">{active.length}</div><div className="l">âmes en suivi</div></Link>
-        <div className="stat"><div className="v">{pointed.length ? `${Math.round((present / pointed.length) * 100)} %` : "—"}</div><div className="l">présence ce dimanche</div></div>
-        <Link to="/a-attribuer" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="v">{unassigned.length}</div><div className="l">à attribuer</div></Link>
-        <div className="stat"><div className="v">{alerts.length}</div><div className="l">en alerte</div></div>
+        <Link to="/ames" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="ic"><IUsers /></div><div className="v">{active.length}</div><div className="l">âmes en suivi</div></Link>
+        <div className="stat"><div className="ic"><ICheck /></div><div className="v">{pointed.length ? `${Math.round((present / pointed.length) * 100)} %` : "—"}</div><div className="l">présence ce dimanche</div></div>
+        <Link to="/a-attribuer" className="stat" style={{ textDecoration: "none", color: "inherit" }}><div className="ic"><IInbox /></div><div className="v">{unassigned.length}</div><div className="l">à attribuer</div></Link>
+        <div className="stat"><div className="ic bad"><IAlert /></div><div className="v">{alerts.length}</div><div className="l">en alerte</div></div>
       </div>
 
       {unassigned.length > 0 && <div className="hero" style={{ marginTop: 16 }}>

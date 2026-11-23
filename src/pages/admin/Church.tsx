@@ -4,6 +4,7 @@ import { useScope } from "../../lib/scope";
 import { currentSunday } from "../../lib/dates";
 import { stepCount } from "../../lib/souls";
 import { Loading, Top } from "../../components/ui";
+import { IChart, ICheck, ISpark, IUsers } from "../../components/Icons";
 
 export default function Church() {
   const { settings, families, campus } = useSession();
@@ -31,10 +32,10 @@ export default function Church() {
         <Link to="/familles" className="btn grad" style={{ alignSelf: "flex-start" }}>Créer les familles</Link>
       </div>}
       <div className="grid2 grid4">
-        <div className="stat"><div className="v">{active.length}</div><div className="l">âmes en suivi</div></div>
-        <div className="stat"><div className="v">{Math.round(((active.length + est) / total) * 100)} %</div><div className="l">taux de maintien</div></div>
-        <div className="stat"><div className="v">{Math.round(((est + full) / total) * 100)} %</div><div className="l">taux de réussite</div></div>
-        <div className="stat"><div className="v">{thisMonth}</div><div className="l">reçues ce mois-ci</div></div>
+        <div className="stat"><div className="ic"><IUsers /></div><div className="v">{active.length}</div><div className="l">âmes en suivi</div></div>
+        <div className="stat"><div className="ic"><ICheck /></div><div className="v">{Math.round(((active.length + est) / total) * 100)} %</div><div className="l">taux de maintien</div></div>
+        <div className="stat"><div className="ic"><IChart /></div><div className="v">{Math.round(((est + full) / total) * 100)} %</div><div className="l">taux de réussite</div></div>
+        <div className="stat"><div className="ic"><ISpark /></div><div className="v">{thisMonth}</div><div className="l">reçues ce mois-ci</div></div>
       </div>
       <p className="small">Maintien : âmes suivies ou affermies sur toutes les âmes reçues. Réussite : affermies ou ayant validé toutes les étapes.</p>
 

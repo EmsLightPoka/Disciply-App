@@ -1,6 +1,8 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { IBack } from "./Icons";
+import { Link, useNavigate } from "react-router-dom";
+import { IBack, IBell } from "./Icons";
+import { useSession } from "../lib/session";
+import { useScope } from "../lib/scope";
 import { initials } from "../lib/souls";
 
 // ---------- Toast ----------
@@ -30,14 +32,35 @@ export function Sheet({ title, onClose, children }: { title: string; onClose: ()
   );
 }
 
-export function Top({ title, sub, back, right }: { title: string; sub?: ReactNode; back?: boolean; right?: ReactNode }) {
+/** En-tête violet de chaque écran : où je suis (famille, campus), notifications, profil, titre. */
+export function Top({ title, sub, back, right, kicker }: { title: string; sub?: ReactNode; back?: boolean; right?: ReactNode; kicker?: ReactNode }) {
   const nav = useNavigate();
+  const { profile, myFamily, campus } = useSession();
+  const { notifications } = useScope();
+  const unread = notifications.filter(n => !n.read).length;
+  const admin = profile && (profile.role === "admin" || profile.role === "master");
   return (
-    <div className="top">
-      {back && <button className="iconbtn" onClick={() => (history.length > 1 ? nav(-1) : nav("/"))} aria-label="Retour"><IBack /></button>}
-      <div style={{ flex: 1, minWidth: 0 }}><h1>{title}</h1>{sub && <div className="sub">{sub}</div>}</div>
-      {right}
-    </div>
+    <header className="hd">
+      <span className="hd-c1" aria-hidden="true" /><span className="hd-c2" aria-hidden="true" />
+      <img className="hd-mk" src="/mark.png" alt="" />
+      <div className="hd-bar">
+        {back
+          ? <button className="hd-btn" onClick={() => (history.length > 1 ? nav(-1) : nav("/"))} aria-label="Retour"><IBack /></button>
+          : <span className="ctx">{admin ? <>{profile?.role === "master" ? "Administration" : "Pasteur"} · <b>{campus?.name ?? "Aucun campus"}</b></> : <><b>{myFamily ? `Famille ${myFamily.name}` : "Sans famille"}</b>{campus ? ` · ${campus.name}` : ""}</>}</span>}
+        <span className="hd-tools">
+          {!title && right}
+          <Link to="/notifications" className="hd-btn" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`}><IBell />{unread > 0 && <span className="hd-dot" />}</Link>
+          {profile && <Link to="/profil" className="me" aria-label="Mon profil">{initials(profile.name)}</Link>}
+        </span>
+      </div>
+      {(title || kicker || sub) && <div className="hd-title">
+        <div className="hd-row">
+          <div className="hd-txt">{kicker && <small>{kicker}</small>}<h1>{title}</h1></div>
+          {title && right && <div className="hd-act">{right}</div>}
+        </div>
+        {sub && <div className="sub">{sub}</div>}
+      </div>}
+    </header>
   );
 }
 

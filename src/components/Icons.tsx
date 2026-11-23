@@ -21,3 +21,6 @@ export const IWorker = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><circle 
 export const IBell = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.9 1.9 0 0 0 3.4 0" /></svg>;
 export const ISchedule = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" /><path d="M8 3v4M16 3v4M3.5 10h17M8 14h3M8 17h6" /></svg>;
 export const IGlobe = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></svg>;
+export const ICheck = (x: P) => <svg viewBox="0 0 24 24" {...p} strokeWidth={2.2} {...x}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>;
+export const IAlert = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4M12 17.5v.01" /></svg>;
+export const ISpark = (x: P) => <svg viewBox="0 0 24 24" {...p} {...x}><path d="M12 3v4M12 17v4M3 12h4M17 12h4M6 6l2.5 2.5M15.5 15.5L18 18M6 18l2.5-2.5M15.5 8.5L18 6" /></svg>;

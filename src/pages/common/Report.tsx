@@ -4,7 +4,7 @@ import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { currentSunday, fullDate, lastSundays } from "../../lib/dates";
 import { Top, shareText, useToast } from "../../components/ui";
-import { IShare } from "../../components/Icons";
+import { ICheck, IShare, ISpark, IUser, IUsers } from "../../components/Icons";
 
 /** Rapport du dimanche : nouvelles âmes par culte et présence des âmes suivies. */
 export default function Report() {
@@ -41,10 +41,10 @@ export default function Report() {
       <Top title="Chiffres du dimanche" sub={scopeName} />
       <div className="filters">{lastSundays(5).reverse().map(d => <button key={d} aria-pressed={d === date} onClick={() => setDate(d)}>{fullDate(d).replace(/ \d{4}$/, "")}</button>)}</div>
       <div className="grid2 grid4" style={{ marginTop: 8 }}>
-        <div className="stat"><div className="v">{totalNC}</div><div className="l">nouveaux convertis</div></div>
-        <div className="stat"><div className="v">{totalNA}</div><div className="l">nouveaux arrivants</div></div>
-        <div className="stat"><div className="v">{r.pointed ? `${pct} %` : "—"}</div><div className="l">présence des âmes suivies</div></div>
-        <div className="stat"><div className="v">{active.length}</div><div className="l">âmes en suivi</div></div>
+        <div className="stat"><div className="ic"><ISpark /></div><div className="v">{totalNC}</div><div className="l">nouveaux convertis</div></div>
+        <div className="stat"><div className="ic"><IUser /></div><div className="v">{totalNA}</div><div className="l">nouveaux arrivants</div></div>
+        <div className="stat"><div className="ic"><ICheck /></div><div className="v">{r.pointed ? `${pct} %` : "—"}</div><div className="l">présence des âmes suivies</div></div>
+        <div className="stat"><div className="ic"><IUsers /></div><div className="v">{active.length}</div><div className="l">âmes en suivi</div></div>
       </div>
       <div className="eyebrow">Par culte</div>
       <div className="tablewrap"><table className="t">

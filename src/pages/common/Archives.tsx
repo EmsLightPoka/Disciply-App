@@ -5,6 +5,7 @@ import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { shortDate } from "../../lib/dates";
 import { Avatar, Top } from "../../components/ui";
+import { IArchive, ICheck } from "../../components/Icons";
 
 export default function Archives() {
   const { familyName, profile } = useSession();
@@ -19,8 +20,8 @@ export default function Archives() {
     <div className="page">
       <Top title="Archives" sub="Âmes sorties du suivi et disciples affermis" />
       <div className="grid2">
-        <div className="stat"><div className="v">{Math.round(((act + est) / total) * 100)} %</div><div className="l">taux de maintien</div></div>
-        <div className="stat"><div className="v">{Math.round((exited / total) * 100)} %</div><div className="l">taux de sortie</div></div>
+        <div className="stat"><div className="ic"><ICheck /></div><div className="v">{Math.round(((act + est) / total) * 100)} %</div><div className="l">taux de maintien</div></div>
+        <div className="stat"><div className="ic"><IArchive /></div><div className="v">{Math.round((exited / total) * 100)} %</div><div className="l">taux de sortie</div></div>
       </div>
       <div className="filters"><button aria-pressed={tab === "exited"} onClick={() => setTab("exited")}>Sorties ({exited})</button><button aria-pressed={tab === "established"} onClick={() => setTab("established")}>Affermis ({est})</button></div>
       <div className="list">{list.map(s => (

@@ -3,8 +3,8 @@ import { Link, NavLink } from "react-router-dom";
 import { useSession } from "../lib/session";
 import { useScope } from "../lib/scope";
 import { ROLE_LABEL, type Role } from "../lib/types";
-import { Avatar, Logo } from "./ui";
-import { IArchive, IBell, ICal, IChart, IChurch, IGear, IGlobe, IHome, IInbox, IReport, ISchedule, IUser, IUsers, IWorker } from "./Icons";
+import { Logo } from "./ui";
+import { IArchive, IBell, ICal, IChart, IChurch, IGear, IGlobe, IHome, IInbox, IReport, ISchedule, IPlus, IUser, IUsers, IWorker } from "./Icons";
 
 type Item = [to: string, label: string, icon: ReactNode, mobile: boolean];
 
@@ -45,10 +45,14 @@ const NAV: Record<Role, Item[]> = {
 
 export default function Shell({ children }: { children: ReactNode }) {
   const { profile, myFamily, campus } = useSession();
-  const { notifications } = useScope();
+  const { notifications, openServices } = useScope();
   if (!profile) return null;
   const items = NAV[profile.role];
   const unread = notifications.filter(n => !n.read).length;
+  // Le bouton central « + » : la famille sert aujourd'hui, ou le pasteur (qui peut enregistrer à tout moment).
+  const canRegister = openServices.length > 0 || profile.role === "admin" || profile.role === "master";
+  const tabs = items.filter(i => i[3]);
+  const half = Math.ceil(tabs.length / 2);
   const where = profile.role === "admin" || profile.role === "master"
     ? campus?.name ?? "Aucun campus choisi"
     : `${myFamily ? `Famille ${myFamily.name}` : "Famille non définie"}${campus ? ` · ${campus.name}` : ""}`;
@@ -63,23 +67,12 @@ export default function Shell({ children }: { children: ReactNode }) {
         <div className="who"><b>{profile.name}</b>{ROLE_LABEL[profile.role]}<br />{where}</div>
       </aside>
       <div className="main">
-        <div className="page wide" style={{ paddingTop: 10, paddingBottom: 0, maxWidth: "none" }}>
-          <div className="context">
-            <img src="/mark.png" alt="" />
-            <span className="fam">{where}</span>
-            <span>{ROLE_LABEL[profile.role]}</span>
-            <span style={{ marginLeft: "auto", display: "flex", gap: 8, alignItems: "center" }}>
-              <Link to="/notifications" className="iconbtn bell" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`}>
-                <IBell />{unread > 0 && <span className="badge">{unread > 9 ? "9+" : unread}</span>}
-              </Link>
-              <Link to="/profil" style={{ textDecoration: "none" }} aria-label="Mon profil"><Avatar name={profile.name} /></Link>
-            </span>
-          </div>
-        </div>
         {children}
       </div>
       <nav className="tabbar" aria-label="Navigation">
-        {items.filter(i => i[3]).map(([to, label, icon]) => <NavLink key={to} to={to}>{icon}<span>{label}</span></NavLink>)}
+        {tabs.slice(0, half).map(([to, label, icon]) => <NavLink key={to} to={to}>{icon}<span>{label}</span></NavLink>)}
+        {canRegister && <Link to="/ames/nouvelle" className="tab-fab" aria-label="Enregistrer une nouvelle âme"><IPlus /></Link>}
+        {tabs.slice(half).map(([to, label, icon]) => <NavLink key={to} to={to}>{icon}<span>{label}</span></NavLink>)}
       </nav>
     </div>
   );

@@ -8,7 +8,7 @@ import { familyReportId, makerReportId, sendFamilyReport, submitMakerReport } fr
 import { addDays, currentSunday, fullDate, lastSundays } from "../../lib/dates";
 import { isCampusAdmin, isLeader, type FamilyReport, type MakerReport, type UserProfile } from "../../lib/types";
 import { Top, copyText, frError, shareText, useToast } from "../../components/ui";
-import { IShare } from "../../components/Icons";
+import { IAlert, ICal, ICheck, IReport, IShare, IUsers } from "../../components/Icons";
 
 /** Rapport de la semaine : le faiseur l'envoie le lundi, le berger compile, le pasteur reçoit. */
 export default function Reports() {
@@ -59,10 +59,10 @@ function MakerView({ week }: { week: string }) {
   return <>
     {sent.data && <div className="success">Rapport envoyé {sent.data.submittedAt ? `le ${sent.data.submittedAt.toDate().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}` : ""}. Tu peux le renvoyer pour le mettre à jour.</div>}
     <div className="grid2 grid4">
-      <div className="stat"><div className="v">{r.souls}</div><div className="l">âmes suivies</div></div>
-      <div className="stat"><div className="v">{r.present}</div><div className="l">présentes dimanche</div></div>
-      <div className="stat"><div className="v">{r.absent}</div><div className="l">absentes</div></div>
-      <div className="stat"><div className="v">{r.notPointed}</div><div className="l">non pointées</div></div>
+      <div className="stat"><div className="ic"><IUsers /></div><div className="v">{r.souls}</div><div className="l">âmes suivies</div></div>
+      <div className="stat"><div className="ic"><ICheck /></div><div className="v">{r.present}</div><div className="l">présentes dimanche</div></div>
+      <div className="stat"><div className="ic bad"><IAlert /></div><div className="v">{r.absent}</div><div className="l">absentes</div></div>
+      <div className="stat"><div className="ic"><ICal /></div><div className="v">{r.notPointed}</div><div className="l">non pointées</div></div>
     </div>
     <div className="eyebrow">Difficultés signalées</div>
     <div className="list">{r.difficulties.length ? r.difficulties.map(d => <div className="note" key={d.soulName}><b style={{ fontWeight: 500 }}>{d.soulName}</b> · {d.text}</div>) : <div className="empty" style={{ padding: 14 }}>Aucune. Signale une difficulté depuis la fiche de l'âme.</div>}</div>
@@ -153,10 +153,10 @@ function PastorView({ week }: { week: string }) {
 
   return <>
     <div className="grid2 grid4">
-      <div className="stat"><div className="v">{list.data.length}/{families.length}</div><div className="l">familles ont envoyé</div></div>
-      <div className="stat"><div className="v">{total.souls}</div><div className="l">âmes suivies</div></div>
-      <div className="stat"><div className="v">{total.present}</div><div className="l">présentes dimanche</div></div>
-      <div className="stat"><div className="v">{total.newSouls}</div><div className="l">nouvelles âmes</div></div>
+      <div className="stat"><div className="ic"><IReport /></div><div className="v">{list.data.length}/{families.length}</div><div className="l">familles ont envoyé</div></div>
+      <div className="stat"><div className="ic"><IUsers /></div><div className="v">{total.souls}</div><div className="l">âmes suivies</div></div>
+      <div className="stat"><div className="ic"><ICheck /></div><div className="v">{total.present}</div><div className="l">présentes dimanche</div></div>
+      <div className="stat"><div className="ic"><IUsers /></div><div className="v">{total.newSouls}</div><div className="l">nouvelles âmes</div></div>
     </div>
     <div className="eyebrow">Rapports des familles</div>
     <div className="list">{list.data.map(r => (
