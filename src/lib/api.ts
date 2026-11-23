@@ -201,5 +201,6 @@ export async function createAccountNow(inv: Invitation, phone: string, password:
     b.update(doc(d2, "invitations", inv.id), { usedBy: cred.user.uid, usedAt: serverTimestamp() });
     await b.commit();
     await signOut(a2);
+    return cred.user.uid;
   } finally { await deleteApp(second); }
 }
