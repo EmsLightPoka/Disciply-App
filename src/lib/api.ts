@@ -176,3 +176,30 @@ export async function sendFamilyReport(r: Omit<FamilyReport, "id" | "sentAt">, p
   }
   await b.commit();
 }
+
+/**
+ * Le responsable crée lui-même le compte d'un ouvrier, avec son mot de passe, sans lien à envoyer.
+ * Le compte est créé dans une seconde instance Firebase : le responsable reste connecté.
+ * Le nouvel ouvrier accepte ensuite sa propre invitation, avec exactement les mêmes règles de sécurité qu'un lien.
+ */
+export async function createAccountNow(inv: Invitation, phone: string, password: string) {
+  const { initializeApp, deleteApp } = await import("firebase/app");
+  const { getAuth, connectAuthEmulator, signOut } = await import("firebase/auth");
+  const { getFirestore, connectFirestoreEmulator } = await import("firebase/firestore");
+  const { firebaseConfig, usingEmulators } = await import("./firebase");
+  const second = initializeApp(firebaseConfig, `creation-${Date.now()}`);
+  const a2 = getAuth(second); const d2 = getFirestore(second);
+  if (usingEmulators) { connectAuthEmulator(a2, `http://${location.hostname}:9099`, { disableWarnings: true }); connectFirestoreEmulator(d2, location.hostname, 8080); }
+  try {
+    const cred = await createUserWithEmailAndPassword(a2, inv.email, password);
+    await updateProfile(cred.user, { displayName: inv.name });
+    const b = writeBatch(d2);
+    b.set(doc(d2, "users", cred.user.uid), {
+      name: inv.name, email: inv.email, phone, gender: inv.gender ?? null, role: inv.role, campusId: inv.campusId, familyId: inv.familyId,
+      active: true, inviteId: inv.id, createdAt: serverTimestamp()
+    });
+    b.update(doc(d2, "invitations", inv.id), { usedBy: cred.user.uid, usedAt: serverTimestamp() });
+    await b.commit();
+    await signOut(a2);
+  } finally { await deleteApp(second); }
+}

@@ -5,7 +5,7 @@ import { db } from "../../lib/firebase";
 import { useQuery } from "../../lib/hooks";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
-import { createInvitation, inviteLink, updateUser } from "../../lib/api";
+import { createAccountNow, createInvitation, inviteLink, updateUser } from "../../lib/api";
 import { ROLE_LABEL, isCampusAdmin, type Invitation, type Role, type UserProfile } from "../../lib/types";
 import { Avatar, Sheet, Top, copyText, frError, shareText, useToast } from "../../components/ui";
 import { IPlus } from "../../components/Icons";
@@ -24,7 +24,7 @@ export default function Team() {
   const pending = invQ.data.filter(i => !i.usedBy);
   const [params] = useSearchParams();
   const [showInvite, setShowInvite] = useState(params.get("inviter") === "1");
-  const [created, setCreated] = useState<{ id: string; name: string } | null>(null);
+  const [created, setCreated] = useState<{ id: string; name: string; email?: string } | null>(null);
   const [edit, setEdit] = useState<UserProfile | null>(null);
   const [famFilter, setFamFilter] = useState("");
 
@@ -70,7 +70,11 @@ export default function Team() {
 
       {showInvite && <InviteSheet onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
       {created && (
-        <Sheet title="Invitation prête" onClose={() => setCreated(null)}>
+        created.email ? <Sheet title="Compte créé" onClose={() => setCreated(null)}>
+          <p className="small" style={{ marginTop: 0 }}>Le compte de {created.name} est prêt. Donne-lui son adresse e-mail et le mot de passe que tu as choisi : il peut se connecter tout de suite.</p>
+          <div className="copybox">{created.email}</div>
+          <div className="btnrow"><button className="btn primary" onClick={() => setCreated(null)}>Terminé</button></div>
+        </Sheet> : <Sheet title="Invitation prête" onClose={() => setCreated(null)}>
           <p className="small" style={{ marginTop: 0 }}>Envoie ce lien à {created.name}. Il permet de créer un seul compte, avec l'adresse e-mail indiquée.</p>
           <div className="copybox">{inviteLink(created.id)}</div>
           <div className="btnrow">
@@ -83,7 +87,7 @@ export default function Team() {
   );
 }
 
-function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (i: { id: string; name: string }) => void }) {
+function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (i: { id: string; name: string; email?: string }) => void }) {
   const { profile, families, campusId, campus } = useSession();
   const toast = useToast();
   const me = profile!;
@@ -97,12 +101,16 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [famChoice, setFamilyId] = useState("");
   const familyId = famChoice || me.familyId || families[0]?.id || "";
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"lien" | "compte">("lien");
+  const [pw, setPw] = useState("");
+  const [phone, setPhone] = useState("");
   const noFamily = role === "admin" || role === "master";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!noFamily && !familyId) return toast("Crée d'abord une famille dans Familles.");
     if (!gender) return toast("Indique s'il s'agit d'un homme ou d'une femme.");
+    if (mode === "compte" && pw.length < 8) return toast("Le mot de passe doit faire au moins 8 caractères.");
     setBusy(true);
     try {
       const fid = noFamily ? null : familyId;
@@ -110,21 +118,33 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
         name: name.trim(), email, role, gender, campusId: role === "master" ? null : campusId, campusName: campus?.name,
         familyId: fid, ...(fid ? { familyName: families.find(f => f.id === fid)?.name } : {})
       });
-      onCreated({ id, name: name.trim() });
+      if (mode === "compte") {
+        const em = email.trim().toLowerCase();
+        await createAccountNow({ id, name: name.trim(), email: em, role, gender, campusId: role === "master" ? null : campusId, familyId: fid, createdBy: me.id, createdByName: me.name, usedBy: null }, phone.trim(), pw);
+        onCreated({ id, name: name.trim(), email: em });
+      } else onCreated({ id, name: name.trim() });
     } catch (x) { toast(frError(x)); } finally { setBusy(false); }
   }
   return (
-    <Sheet title="Inviter un ouvrier" onClose={onClose}>
+    <Sheet title="Ajouter un ouvrier" onClose={onClose}>
       <form onSubmit={submit}>
+        <div className="field"><div className="toggle">
+          <button type="button" aria-pressed={mode === "lien"} onClick={() => setMode("lien")}>Envoyer un lien</button>
+          <button type="button" aria-pressed={mode === "compte"} onClick={() => setMode("compte")}>Créer le compte</button></div>
+          <span className="hint">{mode === "lien" ? "L'ouvrier choisit lui-même son mot de passe en ouvrant le lien." : "Tu choisis le mot de passe et tu le lui donnes. Utile pour un compte de démonstration."}</span></div>
         <div className="field"><label htmlFor="i-name">Nom et prénom</label><input id="i-name" required value={name} onChange={e => setName(e.target.value)} /></div>
-        <div className="field"><label htmlFor="i-email">Adresse e-mail</label><input id="i-email" type="email" required value={email} onChange={e => setEmail(e.target.value)} /><span className="hint">L'ouvrier devra créer son compte avec cette adresse.</span></div>
+        <div className="field"><label htmlFor="i-email">Adresse e-mail</label><input id="i-email" type="email" required value={email} onChange={e => setEmail(e.target.value)} /><span className="hint">{mode === "lien" ? "L'ouvrier devra créer son compte avec cette adresse." : "Il se connectera avec cette adresse."}</span></div>
         <div className="field"><span className="label">Sexe</span><div className="toggle">
           <button type="button" aria-pressed={gender === "F"} onClick={() => setGender("F")}>Femme</button>
           <button type="button" aria-pressed={gender === "H"} onClick={() => setGender("H")}>Homme</button></div></div>
         <div className="field"><label htmlFor="i-role">Rôle</label><select id="i-role" value={role} onChange={e => setRole(e.target.value as Role)}>
           {roles.map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></div>
         {isAdmin && !noFamily && <div className="field"><label htmlFor="i-fam">Famille de disciples</label><select id="i-fam" value={familyId} onChange={e => setFamilyId(e.target.value)}>{families.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>}
-        <button className="btn primary block" disabled={busy}>Créer le lien d'invitation</button>
+        {mode === "compte" && <>
+          <div className="field"><label htmlFor="i-phone">Téléphone (facultatif)</label><input id="i-phone" type="tel" value={phone} onChange={e => setPhone(e.target.value)} /></div>
+          <div className="field"><label htmlFor="i-pw">Mot de passe</label><input id="i-pw" type="text" autoComplete="new-password" value={pw} onChange={e => setPw(e.target.value)} /><span className="hint">8 caractères minimum.</span></div>
+        </>}
+        <button className="btn primary block" disabled={busy}>{busy ? "Un instant…" : mode === "lien" ? "Créer le lien d'invitation" : "Créer le compte"}</button>
       </form>
     </Sheet>
   );
