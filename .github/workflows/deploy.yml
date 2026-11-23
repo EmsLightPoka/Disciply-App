@@ -31,12 +31,12 @@ jobs:
       - run: npm ci
       - name: Vérifier la clé de service
         env:
-          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
-        run: test -n "$SA" || (echo "Ajoute le secret FIREBASE_SERVICE_ACCOUNT au dépôt (voir README)"; exit 1)
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.KEYDISCIPLY }}
+        run: test -n "$SA" || (echo "Ajoute le secret FIREBASE_SERVICE_ACCOUNT (ou KEYDISCIPLY) au dépôt (voir README)"; exit 1)
       - run: npm run build
       - name: Déployer sur Firebase
         env:
-          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          SA: ${{ secrets.FIREBASE_SERVICE_ACCOUNT || secrets.KEYDISCIPLY }}
         run: |
           echo "$SA" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"

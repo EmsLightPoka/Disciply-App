@@ -53,7 +53,7 @@ Tests des règles de sécurité : `npm run test:rules`
 5. Paramètres du projet → Comptes de service → **Générer une nouvelle clé privée** (fichier JSON).
    La configuration de l'étape 4 va dans `.env.production` (déjà fait pour `disciply-icc`) et le projet dans `.firebaserc`.
 6. Dans le dépôt GitHub → Settings → Secrets and variables → Actions, ajouter le secret
-   `FIREBASE_SERVICE_ACCOUNT` : tout le contenu du fichier JSON de l'étape 5.
+   `FIREBASE_SERVICE_ACCOUNT` (ou `KEYDISCIPLY`) : tout le contenu du fichier JSON de l'étape 5.
 7. Pousser sur `main` : GitHub teste, construit et déploie le site et les règles. L'adresse est `https://<projet>.web.app`.
 8. Ouvrir `https://<projet>.web.app/installation` et créer le compte du responsable.
 
