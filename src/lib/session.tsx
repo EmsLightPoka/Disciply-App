@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { onAuthStateChanged, signOut, type User } from "firebase/auth";
-import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { DEFAULT_SETTINGS, type Campus, type Family, type Settings, type UserProfile } from "./types";
 
@@ -16,6 +16,8 @@ interface Session {
   familyName: (id: string | null | undefined) => string;
   myFamily: Family | null;
   logout: () => Promise<void>;
+  /** Faux pour un ancien compte « administrateur de l'application » qui n'est pas le tout premier compte. */
+  superAdminOk: boolean;
 }
 
 const Ctx = createContext<Session | null>(null);
@@ -41,8 +43,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       () => { setProfile(null); setProfileReady(true); });
   }, [user]);
 
-  const activeId = profile?.active ? profile.id : null;
-  const campusId = profile?.active ? profile.campusId ?? null : null;
+  // Le super admin est uniquement le tout premier compte (celui de l'installation).
+  const [masterId, setMasterId] = useState<string | null | undefined>(undefined);
+  const isMasterRole = profile?.role === "master";
+  useEffect(() => {
+    if (!isMasterRole) return;
+    getDoc(doc(db, "meta", "bootstrap")).then(s => setMasterId(s.data()?.masterId ?? null), () => setMasterId(null));
+  }, [isMasterRole]);
+  const superAdminOk = !isMasterRole || masterId === profile?.id;
+
+  const activeId = profile?.active && superAdminOk ? profile.id : null;
+  const campusId = activeId ? profile?.campusId ?? null : null;
 
   useEffect(() => {
     if (!activeId) return;
@@ -60,13 +71,14 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   useEffect(() => { if (profile?.theme) applyTheme(profile.theme); }, [profile?.theme]);
 
   const value = useMemo<Session>(() => ({
-    ready: authReady && profileReady,
+    ready: authReady && profileReady && (!isMasterRole || masterId !== undefined),
+    superAdminOk,
     user, profile, campusId, campuses, settings, families,
     campus: campuses.find(c => c.id === campusId) ?? null,
     familyName: id => families.find(f => f.id === id)?.name ?? (id ? "Famille inconnue" : "Sans famille"),
     myFamily: families.find(f => f.id === profile?.familyId) ?? null,
     logout: () => signOut(auth)
-  }), [authReady, profileReady, user, profile, campusId, campuses, settings, families]);
+  }), [authReady, profileReady, user, profile, campusId, campuses, settings, families, isMasterRole, masterId, superAdminOk]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -5,9 +5,11 @@ import { cap, currentSunday, longDate, nextSunday, today } from "../../lib/dates
 import { nextStep, stepCount, telHref } from "../../lib/souls";
 import { Avatar, Dots, Loading, Top } from "../../components/ui";
 import { ICal, IPhone, IPlus } from "../../components/Icons";
+import { StatTiles, useMyFamilyStats } from "../../components/FamilyView";
 
 export default function Today() {
-  const { profile, settings } = useSession();
+  const { profile, settings, myFamily } = useSession();
+  const famStats = useMyFamilyStats(profile?.familyId);
   const { active, attendance, streak, loading, openServices } = useScope();
   if (loading) return <Loading />;
 
@@ -31,6 +33,11 @@ export default function Today() {
         <span className="big">{active.length === 0 ? "Aucune âme confiée pour l'instant" : toPoint ? `${toPoint} âme${toPoint > 1 ? "s" : ""} à pointer` : "Pointage terminé"}</span>
         {active.length > 0 && <Link to="/dimanche" className="btn grad" style={{ alignSelf: "flex-start" }}>{isSunday && toPoint ? "Commencer le pointage" : "Ouvrir le pointage"}</Link>}
       </div>
+
+      {famStats && <>
+        <div className="eyebrow">Ma famille{myFamily ? ` · ${myFamily.name}` : ""}</div>
+        <StatTiles s={famStats} />
+      </>}
 
       {openServices.length > 0 && (
         <div className="card" style={{ marginTop: 12 }}>

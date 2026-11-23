@@ -14,9 +14,11 @@ service cloud.firestore {
     function role() { return me().role; }
     function myCampus() { return me().campusId; }
     function myFamily() { return me().familyId; }
-    function isMaster() { return active() && role() == 'master'; }
-    function isAdminOf(c) { return active() && (role() == 'master' || (role() == 'admin' && myCampus() == c)); }
-    function inCampus(c) { return active() && (role() == 'master' || myCampus() == c); }
+    // Le super admin est UNIQUEMENT le tout premier compte (celui de l'installation).
+    function isMaster() { return active() && role() == 'master'
+      && get(/databases/$(database)/documents/meta/bootstrap).data.masterId == request.auth.uid; }
+    function isAdminOf(c) { return isMaster() || (active() && role() == 'admin' && myCampus() == c); }
+    function inCampus(c) { return isMaster() || (active() && role() != 'master' && myCampus() == c); }
     function isLeader() { return active() && role() in ['shepherd', 'assistant']; }
     function isShepherd() { return active() && role() == 'shepherd'; }
     function isMaker() { return active() && role() == 'maker'; }
@@ -84,7 +86,7 @@ service cloud.firestore {
       allow update: if
         // Pasteur ou administrateur : tout, sauf donner le rôle d'administrateur de l'application.
         (isAdminOf(resource.data.campusId) && isAdminOf(request.resource.data.campusId)
-          && (request.resource.data.role != 'master' || isMaster()))
+          && request.resource.data.role != 'master')
         // Chacun : son nom, son téléphone, son sexe, son thème.
         || (request.auth.uid == uid && onlyChanges(['name', 'phone', 'theme', 'gender']))
         // L'administrateur de l'application choisit le campus sur lequel il travaille.
@@ -104,7 +106,8 @@ service cloud.firestore {
         && before.email.lower() == request.auth.token.email.lower()
         && before.role == data.role
         && before.campusId == data.campusId
-        && before.familyId == data.familyId;
+        && before.familyId == data.familyId
+        && data.role != 'master';
     }
 
     // ---------- Invitations ----------
@@ -113,7 +116,7 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdminOf(resource.data.campusId)
         || (isShepherd() && resource.data.campusId == myCampus() && resource.data.familyId == myFamily());
-      allow create: if request.resource.data.usedBy == null && (
+      allow create: if request.resource.data.usedBy == null && request.resource.data.role != 'master' && (
         isMaster()
         || (isAdminOf(request.resource.data.campusId) && request.resource.data.role in ['admin', 'shepherd', 'assistant', 'maker'])
         || (isShepherd() && request.resource.data.role in ['maker', 'assistant']
@@ -125,6 +128,14 @@ service cloud.firestore {
         && request.resource.data.usedBy == request.auth.uid;
       allow delete: if isAdminOf(resource.data.campusId)
         || (isShepherd() && resource.data.campusId == myCampus() && resource.data.familyId == myFamily() && resource.data.usedBy == null);
+    }
+
+    // ---------- Chiffres d'une famille (visibles par ses faiseurs, sans le détail des âmes) ----------
+    match /familyStats/{familyId} {
+      allow get: if isAdminOf(resource.data.campusId)
+        || (active() && resource.data.campusId == myCampus() && myFamily() == familyId);
+      allow write: if request.resource.data.familyId == familyId && (
+        isAdminOf(request.resource.data.campusId) || leads(request.resource.data.campusId, familyId));
     }
 
     // ---------- Âmes ----------

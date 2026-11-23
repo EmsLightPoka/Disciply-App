@@ -14,8 +14,8 @@ export default function SoulsList() {
   const { active, streak, workerName, workers, loading } = useScope();
   const [q, setQ] = useState("");
   const [f, setF] = useState<F>("all");
-  const [fam, setFam] = useState("");
   const [params] = useSearchParams();
+  const [fam, setFam] = useState(params.get("famille") ?? "");
   const [maker, setMaker] = useState(params.get("faiseur") ?? "");
   if (loading) return <Loading />;
   const role = profile!.role;

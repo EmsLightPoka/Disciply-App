@@ -40,7 +40,7 @@ const NAV: Record<Role, Item[]> = {
   shepherd: leaderNav,
   assistant: leaderNav.filter(i => i[0] !== "/equipe"),
   admin: adminNav,
-  master: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/programme" ? [i[0], i[1], i[2], false] : i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)]
+  master: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)]
 };
 
 /** Tous les liens du rôle, pour la page « Plus » sur téléphone. */

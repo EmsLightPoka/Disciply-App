@@ -31,6 +31,7 @@ beforeEach(async () => {
     await put("families/paix", { campusId: "dla", name: "Paix", shepherdId: null });
     await put("users/master", { ...u("master", "yde", null), email: "master@x.cm" });
     await put("users/pasteur", { ...u("admin", "yde", null), email: "pasteur@x.cm" });
+    await put("users/faux", { ...u("master", "yde", null), email: "faux@x.cm" });
     await put("users/pasteurdla", { ...u("admin", "dla", null), email: "pasteurdla@x.cm" });
     await put("users/berger", { ...u("shepherd", "yde", "amour"), email: "berger@x.cm" });
     await put("users/assist", { ...u("assistant", "yde", "amour"), email: "assist@x.cm" });
@@ -81,6 +82,24 @@ describe("séparation des campus", () => {
     await assertSucceeds(getDoc(doc(as("master"), "souls/d1")));
     await assertSucceeds(setDoc(doc(as("master"), "campuses/bfs"), { name: "Bafoussam" }));
     await assertFails(setDoc(doc(as("pasteur"), "campuses/bfs2"), { name: "Bafoussam" }));
+  });
+  it("seul le premier compte est super admin", async () => {
+    await assertFails(getDoc(doc(as("faux"), "families/paix")));
+    await assertFails(getDoc(doc(as("faux"), "souls/d1")));
+    await assertFails(setDoc(doc(as("faux"), "campuses/bfs3"), { name: "X" }));
+    await assertFails(updateDoc(doc(as("faux"), "users/faux"), { campusId: "dla" }));
+    await assertFails(updateDoc(doc(as("master"), "users/grace"), { role: "master" }));
+    await assertFails(setDoc(doc(as("master"), "invitations/m1"), { name: "M", email: "m@x.cm", role: "master", campusId: null, familyId: null, usedBy: null }));
+    // Le super admin rattache le compte à un campus comme pasteur.
+    await assertSucceeds(updateDoc(doc(as("master"), "users/faux"), { role: "admin", campusId: "dla" }));
+  });
+  it("chiffres de famille : le berger publie, le faiseur lit les siens seulement", async () => {
+    const st = { campusId: "yde", familyId: "amour", souls: 3 };
+    await assertSucceeds(setDoc(doc(as("berger"), "familyStats/amour"), st));
+    await assertFails(setDoc(doc(as("grace"), "familyStats/amour"), st));
+    await assertSucceeds(getDoc(doc(as("grace"), "familyStats/amour")));
+    await assertFails(getDoc(doc(as("eric"), "familyStats/amour")));
+    await assertFails(setDoc(doc(as("berger"), "familyStats/foi"), { ...st, familyId: "foi" }));
   });
   it("un pasteur ne nomme pas d'administrateur de l'application", async () => {
     await assertFails(updateDoc(doc(as("pasteur"), "users/grace"), { role: "master" }));

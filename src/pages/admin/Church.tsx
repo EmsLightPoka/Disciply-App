@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "../../lib/firebase";
 import { Link } from "react-router-dom";
 import { DEMO_DOMAIN, DEMO_PASSWORD, isDemoCampus, seedDemo } from "../../lib/demo";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { currentSunday } from "../../lib/dates";
 import { stepCount } from "../../lib/souls";
-import { Loading, Top, frError } from "../../components/ui";
+import { Avatar, Loading, Top, frError } from "../../components/ui";
+import { usePublishFamilyStats, useFamilyStats } from "../../components/FamilyView";
 import { IChart, ICheck, IPlus, ISpark, IUsers } from "../../components/Icons";
 
 export default function Church() {
@@ -16,6 +19,8 @@ export default function Church() {
   const [sticky, setSticky] = useState(false);
   useEffect(() => { if (seedable) setSticky(true); }, [seedable]);
   const canSeed = seedable || sticky;
+  const stats = useFamilyStats();
+  usePublishFamilyStats(families.map(f => f.id));
   if (loading) return <Loading />;
   const sunday = currentSunday();
   const total = souls.length || 1;
@@ -23,17 +28,14 @@ export default function Church() {
   const full = active.filter(s => stepCount(s, settings) === settings.steps.length).length;
   const month = new Date().toISOString().slice(0, 7);
   const thisMonth = souls.filter(s => s.arrivalDate.startsWith(month)).length;
-  const fam = families.map(f => {
-    const a = active.filter(s => s.familyId === f.id);
-    const pointed = a.filter(s => attendance.get(s.id)?.get(sunday));
-    const p = pointed.filter(s => attendance.get(s.id)!.get(sunday)!.present).length;
-    return { ...f, n: a.length, pct: pointed.length ? Math.round((p / pointed.length) * 100) : null, alerts: a.filter(s => streak(s.id) >= settings.absenceThreshold).length, noMaker: a.filter(s => !s.makerId).length };
-  });
+  const fam = families.map(f => ({ ...f, ...stats(f.id) }));
+  void sunday; void attendance; void streak;
 
   return (
     <div className="page wide">
       <Top title="Vue du campus" sub={campus?.name ? (/^campus/i.test(campus.name) ? campus.name : `Campus ${campus.name}`) : settings.churchName} right={families.length > 0 ? <Link to="/equipe?inviter=1" className="btn primary sm"><IPlus />Ouvrier</Link> : undefined} />
       {canSeed && <DemoSeed />}
+      <Duplicates />
       {families.length === 0 && !canSeed && <div className="hero" style={{ marginBottom: 16 }}>
         <span className="big">Pour commencer, crée les familles de disciples</span>
         <span className="small">Ensuite, ajoute les ouvriers : un berger pour chaque famille, puis les faiseurs de disciples (bouton « + Ouvrier »).</span>
@@ -47,16 +49,16 @@ export default function Church() {
       </div>
       <p className="small">Maintien : âmes suivies ou affermies sur toutes les âmes reçues. Réussite : affermies ou ayant validé toutes les étapes.</p>
 
-      <div className="eyebrow">Présence de ce dimanche par famille</div>
+      <div className="eyebrow">Familles · touche une famille pour voir ses faiseurs et leurs âmes</div>
       <div className="list">{fam.map(f => (
-        <div className="bar" key={f.id}><span className="lbl">{f.name}</span><span className="track"><b style={{ width: `${f.pct ?? 0}%` }} /></span><span className="pct">{f.pct === null ? "—" : `${f.pct} %`}</span></div>))}
+        <Link key={f.id} className="row" to={`/familles/${f.id}`}><Avatar name={f.name} />
+          <span className="main-col"><div className="name">Famille {f.name}</div>
+            <div className="meta">{f.souls} âmes · {f.makers} faiseur{f.makers > 1 ? "s" : ""}{f.noMaker ? ` · ${f.noMaker} sans faiseur` : ""}</div>
+            <span className="track" style={{ display: "block", marginTop: 6 }}><b style={{ width: `${f.present ?? 0}%` }} /></span></span>
+          <span style={{ textAlign: "right", flex: "none" }}><b>{f.present === null ? "—" : `${f.present} %`}</b><div className="small" style={{ margin: 0 }}>présence</div>
+            {f.alerts > 0 && <span className="chip warn">{f.alerts} alerte{f.alerts > 1 ? "s" : ""}</span>}</span>
+        </Link>))}
         {fam.length === 0 && <div className="empty">Aucune famille.</div>}</div>
-
-      <div className="eyebrow">Familles</div>
-      <div className="tablewrap"><table className="t">
-        <thead><tr><th>Famille</th><th>Âmes</th><th>Sans faiseur</th><th>En alerte</th></tr></thead>
-        <tbody>{fam.map(f => <tr key={f.id}><td>{f.name}</td><td>{f.n}</td><td>{f.noMaker}</td><td>{f.alerts}</td></tr>)}</tbody>
-      </table></div>
       <div className="btnrow"><Link className="btn ghost" to="/rapport-dimanche">Chiffres du dimanche</Link><Link className="btn ghost" to="/a-attribuer">Âmes à attribuer</Link></div>
     </div>
   );
@@ -91,4 +93,32 @@ function DemoSeed() {
       </>}
     </div>
   );
+}
+
+/** Familles en double (même nom) restées vides : le pasteur les supprime en un clic. */
+function Duplicates() {
+  const { families } = useSession();
+  const { souls, workers, services } = useScope();
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const used = (id: string) => souls.some(s => s.familyId === id) || workers.some(w => w.familyId === id) || services.some(s => s.familyId === id);
+  const extra: string[] = [];
+  const byName = new Map<string, typeof families>();
+  for (const f of families) { const k = f.name.trim().toLowerCase(); byName.set(k, [...(byName.get(k) ?? []), f]); }
+  for (const list of byName.values()) {
+    if (list.length < 2) continue;
+    const keep = list.find(f => used(f.id) || f.shepherdId) ?? list[0];
+    for (const f of list) if (f.id !== keep.id && !used(f.id) && !f.shepherdId) extra.push(f.id);
+  }
+  if (!extra.length) return null;
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <h2 style={{ fontSize: 17, marginTop: 0 }}>{extra.length} famille{extra.length > 1 ? "s" : ""} en double</h2>
+      <p className="small">Ces familles portent le même nom qu'une autre et sont vides (aucune âme, aucun ouvrier). On peut les supprimer sans rien perdre.</p>
+      {err && <div className="error">{err}</div>}
+      <button className="btn primary" disabled={busy} onClick={async () => {
+        setBusy(true); setErr("");
+        try { for (const id of extra) await deleteDoc(doc(db, "families", id)); } catch (e) { setErr(frError(e)); } finally { setBusy(false); }
+      }}>{busy ? "Suppression…" : "Supprimer les doublons"}</button>
+    </div>);
 }

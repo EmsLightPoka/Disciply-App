@@ -3,11 +3,13 @@ import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { currentSunday } from "../../lib/dates";
 import { Avatar, Loading, Top } from "../../components/ui";
+import { FamilyMakers, usePublishFamilyStats } from "../../components/FamilyView";
 import { IAlert, ICheck, IInbox, IPlus, IUsers } from "../../components/Icons";
 
 export default function FamilyHome() {
   const { profile, myFamily, settings } = useSession();
   const { active, attendance, streak, workers, workerName, loading } = useScope();
+  usePublishFamilyStats(myFamily ? [myFamily.id] : []);
   if (loading) return <Loading />;
   const sunday = currentSunday();
   const pointed = active.filter(s => attendance.get(s.id)?.get(sunday));
@@ -32,15 +34,10 @@ export default function FamilyHome() {
         <Link to="/a-attribuer" className="btn grad" style={{ alignSelf: "flex-start" }}>Attribuer maintenant</Link>
       </div>}
 
-      <div className="eyebrow">Faiseurs <Link to="/equipe">Inviter</Link></div>
-      <div className="list">{makers.map(m => {
-        const mine = active.filter(s => s.makerId === m.id);
-        const al = mine.filter(s => streak(s.id) >= settings.absenceThreshold).length;
-        return (
-          <Link key={m.id} to={`/ames?faiseur=${m.id}`} className="row"><Avatar name={m.name} />
-            <span className="main-col"><div className="name">{m.name}</div><div className="meta">{mine.length} âmes{notPointed.includes(m) ? " · pointage pas terminé" : ""}</div></span>
-            {al > 0 && <span className="chip warn">{al} alerte{al > 1 ? "s" : ""}</span>}</Link>);
-      })}{makers.length === 0 && <div className="empty">Aucun faiseur. Invite les faiseurs de ta famille depuis Équipe.</div>}</div>
+      <div className="eyebrow">Faiseurs et âmes suivies <Link to="/equipe">Inviter</Link></div>
+      {notPointed.length > 0 && <p className="small" style={{ margin: "0 2px 8px" }}>Pointage pas terminé : {notPointed.map(m => m.name).join(", ")}</p>}
+      {myFamily ? <FamilyMakers familyId={myFamily.id} /> : <div className="empty">Aucune famille.</div>}
+      {makers.length === 0 && <p className="small">Invite les faiseurs de ta famille depuis Équipe.</p>}
 
       {alerts.length > 0 && <>
         <div className="eyebrow">En alerte</div>

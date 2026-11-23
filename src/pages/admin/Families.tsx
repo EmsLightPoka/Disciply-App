@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { createFamily, updateFamily } from "../../lib/api";
@@ -15,6 +16,8 @@ export default function Families() {
   const [shepherdId, setShepherdId] = useState("");
   const [busy, setBusy] = useState(false);
 
+  const [params, setParams] = useSearchParams();
+  useEffect(() => { const id = params.get("modifier"); const f = id && families.find(x => x.id === id); if (f) { open(f); setParams({}, { replace: true }); } }, [params, families]); // eslint-disable-line react-hooks/exhaustive-deps
   function open(f: Family | "new") { setEdit(f); setName(f === "new" ? "" : f.name); setShepherdId(f === "new" ? "" : f.shepherdId ?? ""); }
   async function save() {
     setBusy(true);
@@ -32,9 +35,9 @@ export default function Families() {
       <div className="list">{families.map(f => {
         const makers = workers.filter(w => w.role === "maker" && w.familyId === f.id).length;
         return (
-          <button key={f.id} className="row" onClick={() => open(f)}><Avatar name={f.name} />
-            <span className="main-col"><div className="name">{f.name}</div>
-              <div className="meta">Berger : {f.shepherdId ? workerName(f.shepherdId) : "à définir"} · {makers} faiseur{makers > 1 ? "s" : ""} · {active.filter(s => s.familyId === f.id).length} âmes</div></span></button>);
+          <div key={f.id} className="row"><Avatar name={f.name} /><Link to={`/familles/${f.id}`} className="main-col" style={{ textDecoration: "none", color: "inherit" }}>
+             <div className="name">{f.name}</div>
+              <div className="meta">Berger : {f.shepherdId ? workerName(f.shepherdId) : "à définir"} · {makers} faiseur{makers > 1 ? "s" : ""} · {active.filter(s => s.familyId === f.id).length} âmes</div></Link><button className="btn ghost sm" style={{ flex: "none" }} onClick={() => open(f)}>Modifier</button></div>);
       })}{families.length === 0 && <div className="empty">Crée la première famille, par exemple « Amour ».</div>}</div>
       <p className="small">Pour qu'un berger apparaisse ici, invite-le d'abord depuis Ouvriers avec le rôle Berger et sa famille.</p>
       {edit && (

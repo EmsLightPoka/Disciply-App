@@ -92,8 +92,7 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const toast = useToast();
   const me = profile!;
   const isAdmin = isCampusAdmin(me.role);
-  const roles: Role[] = me.role === "master" ? ["maker", "assistant", "shepherd", "admin", "master"]
-    : isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
+  const roles: Role[] = isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"F" | "H" | "">("");
@@ -104,7 +103,7 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [mode, setMode] = useState<"lien" | "compte">("lien");
   const [pw, setPw] = useState("");
   const [phone, setPhone] = useState("");
-  const noFamily = role === "admin" || role === "master";
+  const noFamily = role === "admin";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -115,12 +114,12 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
     try {
       const fid = noFamily ? null : familyId;
       const id = await createInvitation(me, {
-        name: name.trim(), email, role, gender, campusId: role === "master" ? null : campusId, campusName: campus?.name,
+        name: name.trim(), email, role, gender, campusId, campusName: campus?.name,
         familyId: fid, ...(fid ? { familyName: families.find(f => f.id === fid)?.name } : {})
       });
       if (mode === "compte") {
         const em = email.trim().toLowerCase();
-        await createAccountNow({ id, name: name.trim(), email: em, role, gender, campusId: role === "master" ? null : campusId, familyId: fid, createdBy: me.id, createdByName: me.name, usedBy: null }, phone.trim(), pw);
+        await createAccountNow({ id, name: name.trim(), email: em, role, gender, campusId, familyId: fid, createdBy: me.id, createdByName: me.name, usedBy: null }, phone.trim(), pw);
         onCreated({ id, name: name.trim(), email: em });
       } else onCreated({ id, name: name.trim() });
     } catch (x) { toast(frError(x)); } finally { setBusy(false); }
@@ -183,7 +182,7 @@ function EditWorker({ w, onClose }: { w: UserProfile; onClose: () => void }) {
     <Sheet title={w.name} onClose={onClose}>
       <p className="small" style={{ marginTop: 0 }}>{w.email}{w.phone ? ` · ${w.phone}` : ""} · {familyName(w.familyId)}</p>
       <div className="field"><label htmlFor="e-role">Rôle</label><select id="e-role" value={role} disabled={self} onChange={e => setRole(e.target.value as Role)}>
-        {(["maker", "assistant", "shepherd", "admin", ...(profile!.role === "master" ? ["master" as Role] : [])] as Role[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></div>
+        {(["maker", "assistant", "shepherd", "admin"] as Role[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></div>
       {role !== "admin" && role !== "master" && <div className="field"><label htmlFor="e-fam">Famille</label><select id="e-fam" value={familyId} onChange={e => setFamilyId(e.target.value)}>
         <option value="">Choisir…</option>{families.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>}
       <button className="btn primary block" disabled={busy || (role !== "admin" && role !== "master" && !familyId)} onClick={() => save({ role, familyId: role === "admin" || role === "master" ? null : familyId }, "Compte mis à jour")}>Enregistrer</button>

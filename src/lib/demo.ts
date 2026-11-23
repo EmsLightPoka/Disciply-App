@@ -1,6 +1,7 @@
 import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
-import { createAccountNow, createFamily, createInvitation, updateFamily } from "./api";
+import { addService, createAccountNow, createFamily, createInvitation, updateFamily } from "./api";
+import { getDocs, query, where } from "firebase/firestore";
 import { addDays, currentSunday, lastSundays } from "./dates";
 import type { Invitation, Role, Settings, UserProfile } from "./types";
 
@@ -39,9 +40,14 @@ export async function seedDemo(me: UserProfile, campusId: string, campusName: st
     catch (e) { if ((e as { code?: string }).code === "auth/email-already-in-use") { log(`${email} existe déjà, ignoré`); return null; } throw e; }
   }
 
+  // Jamais deux fois : si une famille de démonstration existe déjà, on ne recrée rien.
+  const existing = await getDocs(query(collection(db, "families"), where("campusId", "==", campusId)));
+  if (existing.docs.some(d => FAMILIES.includes(d.data().name))) throw new Error("Le campus de démonstration est déjà rempli.");
+  const famIds: string[] = [];
   for (const fam of FAMILIES) {
     log(`Famille ${fam} : berger et faiseurs…`);
     const ref = await createFamily(campusId, fam, null);
+    famIds.push(ref.id);
     const fs = slug(fam);
     const shepherdF = rnd() < 0.5;
     const shepherdId = await account(`${pick(shepherdF ? F_FIRST : H_FIRST)} ${pick(LAST)}`, shepherdF ? "F" : "H", "shepherd", ref.id, fam, `berger.${fs}@${DEMO_DOMAIN}`);
@@ -51,6 +57,14 @@ export async function seedDemo(me: UserProfile, campusId: string, campusName: st
       const uid = await account(`${pick(g === "F" ? F_FIRST : H_FIRST)} ${pick(LAST)}`, g, "maker", ref.id, fam, `faiseur${i}.${fs}@${DEMO_DOMAIN}`);
       if (uid) makers.push({ id: uid, familyId: ref.id, gender: g });
     }
+  }
+  // Programme de service : ce dimanche et les 4 suivants, une famille par culte, à tour de rôle.
+  log("Programme des cultes…");
+  const slots = settings.services.length ? settings.services : ["1er culte"];
+  let turn = 0;
+  for (let w = 0; w < 5; w++) {
+    const d = addDays(currentSunday(), 7 * w);
+    for (const [i, slot] of slots.entries()) await addService(campusId, d, slot, i, famIds[turn++ % famIds.length]);
   }
   const souls = await seedSouls(me, campusId, settings, makers, log);
   return { accounts, souls };

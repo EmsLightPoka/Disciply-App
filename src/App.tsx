@@ -28,11 +28,12 @@ import Families from "./pages/admin/Families";
 import Settings from "./pages/admin/Settings";
 import Campuses from "./pages/admin/Campuses";
 import Archives from "./pages/common/Archives";
+import FamilyDetail from "./pages/admin/FamilyDetail";
 
 const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/campus" };
 
 export default function App() {
-  const { ready, user, profile } = useSession();
+  const { ready, user, profile, superAdminOk } = useSession();
   const loc = useLocation();
   if (!ready) return <Loading />;
 
@@ -47,7 +48,7 @@ export default function App() {
       </Routes>
     );
   }
-  if (!profile || !profile.active) {
+  if (!profile || !profile.active || !superAdminOk) {
     return (
       <Routes>
         <Route path="/invitation/:id" element={<AcceptInvite />} />
@@ -82,6 +83,7 @@ export default function App() {
           {leader && <Route path="/famille" element={<FamilyHome />} />}
           {admin && <Route path="/eglise" element={<Church />} />}
           {admin && <Route path="/familles" element={<Families />} />}
+          {admin && <Route path="/familles/:id" element={<FamilyDetail />} />}
           {admin && <Route path="/reglages" element={<Settings />} />}
           {role === "master" && <Route path="/campus" element={<Campuses />} />}
           <Route path="*" element={<Navigate to={home} replace />} />

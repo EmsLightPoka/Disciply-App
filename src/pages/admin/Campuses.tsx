@@ -1,4 +1,9 @@
 import { useState } from "react";
+import { collection, query, where } from "firebase/firestore";
+import { db } from "../../lib/firebase";
+import { useQuery } from "../../lib/hooks";
+import { updateUser } from "../../lib/api";
+import type { UserProfile } from "../../lib/types";
 import { useNavigate } from "react-router-dom";
 import { useSession } from "../../lib/session";
 import { createCampus, switchCampus } from "../../lib/api";
@@ -29,6 +34,7 @@ export default function Campuses() {
           {c.id === campusId && <span className="chip ok">Campus actuel</span>}
         </button>))}
         {campuses.length === 0 && <div className="empty">Aucun campus.</div>}</div>
+      <ToFix />
       <p className="small">Pour donner un pasteur à un campus : choisis le campus, puis Ouvriers, Inviter, rôle Pasteur du campus.</p>
       {open && <Sheet title="Nouveau campus" onClose={() => setOpen(false)}>
         <div className="field"><label htmlFor="cn">Nom</label><input id="cn" value={name} onChange={e => setName(e.target.value)} placeholder="Ex. ICC Douala" /></div>
@@ -37,4 +43,26 @@ export default function Campuses() {
       </Sheet>}
     </div>
   );
+}
+
+/** Anciens comptes créés avec le rôle « administrateur de l'application » : seul le premier compte garde ce rôle. */
+function ToFix() {
+  const { campuses, profile } = useSession();
+  const toast = useToast();
+  const q = useQuery<UserProfile>(query(collection(db, "users"), where("role", "==", "master")), [profile?.id]);
+  const list = q.data.filter(u => u.id !== profile?.id);
+  const [pick, setPick] = useState<Record<string, string>>({});
+  if (!list.length) return null;
+  return <>
+    <div className="eyebrow">Comptes à rattacher à un campus</div>
+    <p className="small" style={{ margin: "0 2px 8px" }}>Seul ton compte voit tous les campus. Ces comptes doivent devenir pasteur d'un seul campus.</p>
+    <div className="list">{list.map(u => (
+      <div className="row" key={u.id} style={{ flexWrap: "wrap" }}><Avatar name={u.name} />
+        <span className="main-col"><div className="name">{u.name}</div><div className="meta">{u.email}</div></span>
+        <select aria-label="Campus" value={pick[u.id] ?? u.campusId ?? ""} onChange={e => setPick({ ...pick, [u.id]: e.target.value })} style={{ flex: "1 1 140px" }}>
+          <option value="">Choisir un campus…</option>{campuses.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select>
+        <button className="btn primary sm" style={{ flex: "none" }} disabled={!(pick[u.id] ?? u.campusId)} onClick={() =>
+          updateUser(u.id, { role: "admin", campusId: pick[u.id] ?? u.campusId, familyId: null }).then(() => toast(`${u.name} est pasteur de ce campus`)).catch(e => toast(frError(e)))}>Nommer pasteur</button>
+      </div>))}</div>
+  </>;
 }
