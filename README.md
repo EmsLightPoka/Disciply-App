@@ -51,9 +51,9 @@ Tests des règles de sécurité : `npm run test:rules`
 3. **Firestore Database** → Créer une base, en mode production, région `europe-west1` (proche du Cameroun).
 4. Paramètres du projet → Vos applications → ajouter une **application Web**. Copier la configuration affichée.
 5. Paramètres du projet → Comptes de service → **Générer une nouvelle clé privée** (fichier JSON).
-6. Dans le dépôt GitHub → Settings → Secrets and variables → Actions, ajouter :
-   - `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`, `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID`, `VITE_FIREBASE_APP_ID` (depuis l'étape 4)
-   - `FIREBASE_SERVICE_ACCOUNT` : tout le contenu du fichier JSON de l'étape 5
+   La configuration de l'étape 4 va dans `.env.production` (déjà fait pour `disciply-icc`) et le projet dans `.firebaserc`.
+6. Dans le dépôt GitHub → Settings → Secrets and variables → Actions, ajouter le secret
+   `FIREBASE_SERVICE_ACCOUNT` : tout le contenu du fichier JSON de l'étape 5.
 7. Pousser sur `main` : GitHub teste, construit et déploie le site et les règles. L'adresse est `https://<projet>.web.app`.
 8. Ouvrir `https://<projet>.web.app/installation` et créer le compte du responsable.
 

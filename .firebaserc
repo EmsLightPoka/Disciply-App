@@ -1,1 +1,3 @@
-{ "projects": { "default": "demo-disciply" } }
+{
+  "projects": { "default": "disciply-icc" }
+}
