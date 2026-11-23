@@ -4,7 +4,7 @@ import { db } from "../../lib/firebase";
 import { useQuery } from "../../lib/hooks";
 import { updateUser } from "../../lib/api";
 import type { UserProfile } from "../../lib/types";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useSession } from "../../lib/session";
 import { createCampus, switchCampus } from "../../lib/api";
 import { Avatar, Sheet, Top, frError, useToast } from "../../components/ui";
@@ -34,6 +34,7 @@ export default function Campuses() {
           {c.id === campusId && <span className="chip ok">Campus actuel</span>}
         </button>))}
         {campuses.length === 0 && <div className="empty">Aucun campus.</div>}</div>
+      {profile?.role === "master" && <Pastors />}
       {profile?.role === "master" && <ToFix />}
       <p className="small">Pour donner un leader à un campus : choisis le campus, puis Ouvriers, Ajouter, rôle Leader du campus. Le super admin peut aussi nommer le Pasteur principal, qui voit tous les campus.</p>
       {open && <Sheet title="Nouveau campus" onClose={() => setOpen(false)}>
@@ -64,5 +65,21 @@ function ToFix() {
         <button className="btn primary sm" style={{ flex: "none" }} disabled={!(pick[u.id] ?? u.campusId)} onClick={() =>
           updateUser(u.id, { role: "admin", campusId: pick[u.id] ?? u.campusId, familyId: null }).then(() => toast(`${u.name} est leader de ce campus`)).catch(e => toast(frError(e)))}>Nommer leader</button>
       </div>))}</div>
+  </>;
+}
+
+/** Super admin : le ou les pasteurs principaux (mêmes accès que le super admin, sur tous les campus). */
+function Pastors() {
+  const { profile, campusId } = useSession();
+  const q = useQuery<UserProfile>(query(collection(db, "users"), where("role", "==", "pastor")), [profile?.id]);
+  return <>
+    <div className="eyebrow">Pasteur principal</div>
+    <div className="list">{q.data.map(u => (
+      <div className="row" key={u.id}><Avatar name={u.name} />
+        <span className="main-col"><div className="name">{u.name}</div><div className="meta">{u.email}{u.active ? "" : " · désactivé"}</div></span></div>))}
+      {q.data.length === 0 && <div className="empty">Pas encore de pasteur principal.</div>}</div>
+    <div className="btnrow">{campusId
+      ? <Link className="btn primary" to="/equipe?inviter=1&role=pastor"><IPlus />Créer le compte du pasteur principal</Link>
+      : <span className="small">Choisis d'abord un campus ci-dessus.</span>}</div>
   </>;
 }

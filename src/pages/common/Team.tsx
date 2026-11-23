@@ -68,7 +68,7 @@ export default function Team() {
           </button>);
       })}{list.length === 0 && <div className="empty">Personne pour l'instant. Invite un ouvrier.</div>}</div>
 
-      {showInvite && <InviteSheet onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
+      {showInvite && <InviteSheet initialRole={params.get("role") === "pastor" && me.role === "master" ? "pastor" : undefined} onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
       {created && (
         created.email ? <Sheet title="Compte créé" onClose={() => setCreated(null)}>
           <p className="small" style={{ marginTop: 0 }}>Le compte de {created.name} est prêt. Donne-lui son adresse e-mail et le mot de passe que tu as choisi : il peut se connecter tout de suite.</p>
@@ -87,7 +87,7 @@ export default function Team() {
   );
 }
 
-function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (i: { id: string; name: string; email?: string }) => void }) {
+function InviteSheet({ onClose, onCreated, initialRole }: { initialRole?: Role; onClose: () => void; onCreated: (i: { id: string; name: string; email?: string }) => void }) {
   const { profile, families, campusId, campus } = useSession();
   const toast = useToast();
   const me = profile!;
@@ -96,11 +96,11 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"F" | "H" | "">("");
-  const [role, setRole] = useState<Role>("maker");
+  const [role, setRole] = useState<Role>(initialRole ?? "maker");
   const [famChoice, setFamilyId] = useState("");
   const familyId = famChoice || me.familyId || families[0]?.id || "";
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"lien" | "compte">("lien");
+  const [mode, setMode] = useState<"lien" | "compte">(initialRole ? "compte" : "lien");
   const [pw, setPw] = useState("");
   const [phone, setPhone] = useState("");
   const noFamily = role === "admin" || role === "pastor";
