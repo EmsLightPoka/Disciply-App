@@ -7,6 +7,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
+      injectRegister: false,
       includeAssets: ["logo-color.png", "logo-white.png", "mark.png", "apple-touch-icon.png"],
       manifest: {
         name: "Disciply",
@@ -23,7 +24,7 @@ export default defineConfig({
           { src: "icon-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }
         ]
       },
-      workbox: { navigateFallback: "/index.html", globPatterns: ["**/*.{js,css,html,png,svg,woff2}"] }
+      workbox: { clientsClaim: true, skipWaiting: true, cleanupOutdatedCaches: true, navigateFallback: "/index.html", globPatterns: ["**/*.{js,css,html,png,svg,woff2}"] }
     })
   ]
 });
