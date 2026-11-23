@@ -10,7 +10,7 @@ export default function NoAccess() {
       <h1>{toFix ? "Compte à rattacher à un campus" : profile && !profile.active ? "Compte désactivé" : "Compte sans accès"}</h1>
       <p className="small">
         {toFix
-          ? "Seul le super admin voit tous les campus. Il doit rattacher ce compte à son campus (Tous les campus, Comptes à rattacher). Reconnecte-toi ensuite."
+          ? "Seul le super admin voit tous les campus. Il doit rattacher ce compte à son campus comme leader (Tous les campus, Comptes à rattacher). Reconnecte-toi ensuite."
           : profile && !profile.active
           ? "Ton compte a été désactivé par le responsable. Contacte-le si c'est une erreur."
           : `Le compte ${user?.email ?? ""} n'est relié à aucune invitation. Demande un lien d'invitation à ton berger ou au responsable.`}

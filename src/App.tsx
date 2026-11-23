@@ -30,7 +30,7 @@ import Campuses from "./pages/admin/Campuses";
 import Archives from "./pages/common/Archives";
 import FamilyDetail from "./pages/admin/FamilyDetail";
 
-const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/campus" };
+const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/campus", pastor: "/campus" };
 
 export default function App() {
   const { ready, user, profile, superAdminOk } = useSession();
@@ -85,7 +85,7 @@ export default function App() {
           {admin && <Route path="/familles" element={<Families />} />}
           {admin && <Route path="/familles/:id" element={<FamilyDetail />} />}
           {admin && <Route path="/reglages" element={<Settings />} />}
-          {role === "master" && <Route path="/campus" element={<Campuses />} />}
+          {(role === "master" || role === "pastor") && <Route path="/campus" element={<Campuses />} />}
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </Shell>

@@ -40,7 +40,8 @@ const NAV: Record<Role, Item[]> = {
   shepherd: leaderNav,
   assistant: leaderNav.filter(i => i[0] !== "/equipe"),
   admin: adminNav,
-  master: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)]
+  master: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)],
+  pastor: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)]
 };
 
 /** Tous les liens du rôle, pour la page « Plus » sur téléphone. */
@@ -54,10 +55,10 @@ export default function Shell({ children }: { children: ReactNode }) {
   const items = NAV[profile.role];
   const unread = notifications.filter(n => !n.read).length;
   // Le bouton central « + » : la famille sert aujourd'hui, ou le pasteur (qui peut enregistrer à tout moment).
-  const canRegister = openServices.length > 0 || profile.role === "admin" || profile.role === "master";
+  const canRegister = openServices.length > 0 || profile.role === "admin" || profile.role === "master" || profile.role === "pastor";
   const tabs: Item[] = [...items.filter(i => i[3]), ...(hasMore(profile.role) ? [["/plus", "Plus", <IMenu />, true] as Item] : [])];
   const half = Math.ceil(tabs.length / 2);
-  const where = profile.role === "admin" || profile.role === "master"
+  const where = profile.role === "admin" || profile.role === "master" || profile.role === "pastor"
     ? campus?.name ?? "Aucun campus choisi"
     : `${myFamily ? `Famille ${myFamily.name}` : "Famille non définie"}${campus ? ` · ${campus.name}` : ""}`;
 

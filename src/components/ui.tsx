@@ -39,7 +39,8 @@ export function Top({ title, sub, back, right, kicker }: { title: string; sub?: 
   const { profile, myFamily, campus } = useSession();
   const { notifications } = useScope();
   const unread = notifications.filter(n => !n.read).length;
-  const admin = profile && (profile.role === "admin" || profile.role === "master");
+  const admin = profile && (profile.role === "admin" || profile.role === "master" || profile.role === "pastor");
+  const glob = profile?.role === "master" || profile?.role === "pastor";
   return (
     <header className="hd">
       <span className="hd-c1" aria-hidden="true" /><span className="hd-c2" aria-hidden="true" />
@@ -47,7 +48,7 @@ export function Top({ title, sub, back, right, kicker }: { title: string; sub?: 
       <div className="hd-bar">
         {back
           ? <button className="hd-btn" onClick={() => (history.length > 1 ? nav(-1) : nav("/"))} aria-label="Retour"><IBack /></button>
-          : <span className="ctx">{admin ? <>{profile?.role === "master" ? "Administration" : "Pasteur"} · <b>{profile?.role === "master" && loc.pathname === "/campus" ? "Tous les campus" : campus?.name ?? "Aucun campus"}</b></> : <><b>{myFamily ? `Famille ${myFamily.name}` : "Sans famille"}</b>{campus ? ` · ${campus.name}` : ""}</>}</span>}
+          : <span className="ctx">{admin ? <>{profile?.role === "master" ? "Super admin" : profile?.role === "pastor" ? "Pasteur principal" : "Leader"} · <b>{glob && loc.pathname === "/campus" ? "Tous les campus" : campus?.name ?? "Aucun campus"}</b></> : <><b>{myFamily ? `Famille ${myFamily.name}` : "Sans famille"}</b>{campus ? ` · ${campus.name}` : ""}</>}</span>}
         <span className="hd-tools">
           {!title && right}
           <Link to="/notifications" className="hd-btn" aria-label={`Notifications${unread ? `, ${unread} non lues` : ""}`}><IBell />{unread > 0 && <span className="hd-dot" />}</Link>

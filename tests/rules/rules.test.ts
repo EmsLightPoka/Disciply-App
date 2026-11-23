@@ -31,6 +31,7 @@ beforeEach(async () => {
     await put("families/paix", { campusId: "dla", name: "Paix", shepherdId: null });
     await put("users/master", { ...u("master", "yde", null), email: "master@x.cm" });
     await put("users/pasteur", { ...u("admin", "yde", null), email: "pasteur@x.cm" });
+    await put("users/pp", { ...u("pastor", "dla", null), email: "pp@x.cm" });
     await put("users/faux", { ...u("master", "yde", null), email: "faux@x.cm" });
     await put("users/pasteurdla", { ...u("admin", "dla", null), email: "pasteurdla@x.cm" });
     await put("users/berger", { ...u("shepherd", "yde", "amour"), email: "berger@x.cm" });
@@ -100,6 +101,15 @@ describe("séparation des campus", () => {
     await assertSucceeds(getDoc(doc(as("grace"), "familyStats/amour")));
     await assertFails(getDoc(doc(as("eric"), "familyStats/amour")));
     await assertFails(setDoc(doc(as("berger"), "familyStats/foi"), { ...st, familyId: "foi" }));
+  });
+  it("le pasteur principal voit tous les campus ; seul le super admin le nomme", async () => {
+    await assertSucceeds(getDoc(doc(as("pp"), "souls/d1")));
+    await assertSucceeds(getDoc(doc(as("pp"), "families/amour")));
+    await assertSucceeds(setDoc(doc(as("pp"), "campuses/bfs4"), { name: "Bafoussam" }));
+    await assertSucceeds(updateDoc(doc(as("pp"), "users/pp"), { campusId: "yde" }));
+    await assertFails(updateDoc(doc(as("pp"), "users/grace"), { role: "pastor" }));
+    await assertFails(updateDoc(doc(as("pasteurdla"), "users/pp"), { role: "maker", familyId: "paix" }));
+    await assertSucceeds(updateDoc(doc(as("master"), "users/grace"), { role: "pastor", familyId: null }));
   });
   it("un pasteur ne nomme pas d'administrateur de l'application", async () => {
     await assertFails(updateDoc(doc(as("pasteur"), "users/grace"), { role: "master" }));

@@ -17,15 +17,17 @@ service cloud.firestore {
     // Le super admin est UNIQUEMENT le tout premier compte (celui de l'installation).
     function isMaster() { return active() && role() == 'master'
       && get(/databases/$(database)/documents/meta/bootstrap).data.masterId == request.auth.uid; }
-    function isAdminOf(c) { return isMaster() || (active() && role() == 'admin' && myCampus() == c); }
-    function inCampus(c) { return isMaster() || (active() && role() != 'master' && myCampus() == c); }
+    // Pasteur principal : les mêmes accès que le super admin, sur tous les campus.
+    function isGlobal() { return isMaster() || (active() && role() == 'pastor'); }
+    function isAdminOf(c) { return isGlobal() || (active() && role() == 'admin' && myCampus() == c); }
+    function inCampus(c) { return isGlobal() || (active() && !(role() in ['master', 'pastor']) && myCampus() == c); }
     function isLeader() { return active() && role() in ['shepherd', 'assistant']; }
     function isShepherd() { return active() && role() == 'shepherd'; }
     function isMaker() { return active() && role() == 'maker'; }
     function leads(c, f) { return isLeader() && myCampus() == c && myFamily() == f; }
     function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     function unchanged(k) { return request.resource.data[k] == resource.data[k]; }
-    function validRole(r) { return r in ['master', 'admin', 'shepherd', 'assistant', 'maker']; }
+    function validRole(r) { return r in ['master', 'pastor', 'admin', 'shepherd', 'assistant', 'maker']; }
 
     // ---------- Installation : le tout premier compte devient administrateur de l'application ----------
     match /meta/bootstrap {
@@ -38,7 +40,7 @@ service cloud.firestore {
     // ---------- Campus ----------
     match /campuses/{campusId} {
       allow read: if active();
-      allow create, update, delete: if isMaster();
+      allow create, update, delete: if isGlobal();
     }
 
     // ---------- Réglages d'un campus ----------
@@ -86,11 +88,13 @@ service cloud.firestore {
       allow update: if
         // Pasteur ou administrateur : tout, sauf donner le rôle d'administrateur de l'application.
         (isAdminOf(resource.data.campusId) && isAdminOf(request.resource.data.campusId)
-          && request.resource.data.role != 'master')
+          && request.resource.data.role != 'master'
+          // Seul le super admin nomme ou retire un pasteur principal.
+          && ((request.resource.data.role != 'pastor' && resource.data.role != 'pastor') || isMaster()))
         // Chacun : son nom, son téléphone, son sexe, son thème.
         || (request.auth.uid == uid && onlyChanges(['name', 'phone', 'theme', 'gender']))
         // L'administrateur de l'application choisit le campus sur lequel il travaille.
-        || (request.auth.uid == uid && isMaster() && onlyChanges(['campusId']))
+        || (request.auth.uid == uid && isGlobal() && onlyChanges(['campusId']))
         // Le berger nomme ou retire un assistant parmi les faiseurs de sa famille.
         || (isShepherd() && resource.data.campusId == myCampus() && resource.data.familyId == myFamily()
             && resource.data.role in ['maker', 'assistant'] && request.resource.data.role in ['maker', 'assistant']
@@ -116,8 +120,9 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdminOf(resource.data.campusId)
         || (isShepherd() && resource.data.campusId == myCampus() && resource.data.familyId == myFamily());
-      allow create: if request.resource.data.usedBy == null && request.resource.data.role != 'master' && (
-        isMaster()
+      allow create: if request.resource.data.usedBy == null && request.resource.data.role != 'master'
+        && (request.resource.data.role != 'pastor' || isMaster()) && (
+        isGlobal()
         || (isAdminOf(request.resource.data.campusId) && request.resource.data.role in ['admin', 'shepherd', 'assistant', 'maker'])
         || (isShepherd() && request.resource.data.role in ['maker', 'assistant']
             && request.resource.data.campusId == myCampus() && request.resource.data.familyId == myFamily()));

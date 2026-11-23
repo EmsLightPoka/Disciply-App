@@ -92,7 +92,7 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const toast = useToast();
   const me = profile!;
   const isAdmin = isCampusAdmin(me.role);
-  const roles: Role[] = isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
+  const roles: Role[] = me.role === "master" ? ["maker", "assistant", "shepherd", "admin", "pastor"] : isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"F" | "H" | "">("");
@@ -103,7 +103,7 @@ function InviteSheet({ onClose, onCreated }: { onClose: () => void; onCreated: (
   const [mode, setMode] = useState<"lien" | "compte">("lien");
   const [pw, setPw] = useState("");
   const [phone, setPhone] = useState("");
-  const noFamily = role === "admin";
+  const noFamily = role === "admin" || role === "pastor";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -182,10 +182,10 @@ function EditWorker({ w, onClose }: { w: UserProfile; onClose: () => void }) {
     <Sheet title={w.name} onClose={onClose}>
       <p className="small" style={{ marginTop: 0 }}>{w.email}{w.phone ? ` · ${w.phone}` : ""} · {familyName(w.familyId)}</p>
       <div className="field"><label htmlFor="e-role">Rôle</label><select id="e-role" value={role} disabled={self} onChange={e => setRole(e.target.value as Role)}>
-        {(["maker", "assistant", "shepherd", "admin"] as Role[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></div>
-      {role !== "admin" && role !== "master" && <div className="field"><label htmlFor="e-fam">Famille</label><select id="e-fam" value={familyId} onChange={e => setFamilyId(e.target.value)}>
+        {(["maker", "assistant", "shepherd", "admin", ...(profile!.role === "master" || w.role === "pastor" ? ["pastor" as Role] : [])] as Role[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></div>
+      {role !== "admin" && role !== "pastor" && <div className="field"><label htmlFor="e-fam">Famille</label><select id="e-fam" value={familyId} onChange={e => setFamilyId(e.target.value)}>
         <option value="">Choisir…</option>{families.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>}
-      <button className="btn primary block" disabled={busy || (role !== "admin" && role !== "master" && !familyId)} onClick={() => save({ role, familyId: role === "admin" || role === "master" ? null : familyId }, "Compte mis à jour")}>Enregistrer</button>
+      <button className="btn primary block" disabled={busy || (role !== "admin" && role !== "pastor" && !familyId)} onClick={() => save({ role, familyId: role === "admin" || role === "pastor" ? null : familyId }, "Compte mis à jour")}>Enregistrer</button>
       {!self && <div className="btnrow">
         <button className={"btn " + (w.active ? "danger" : "ghost")} disabled={busy} onClick={() => save({ active: !w.active }, w.active ? "Compte désactivé" : "Compte réactivé")}>{w.active ? "Désactiver le compte" : "Réactiver le compte"}</button>
       </div>}

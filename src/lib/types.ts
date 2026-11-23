@@ -1,17 +1,20 @@
 import type { Timestamp } from "firebase/firestore";
 
-export type Role = "master" | "admin" | "shepherd" | "assistant" | "maker";
+export type Role = "master" | "pastor" | "admin" | "shepherd" | "assistant" | "maker";
 export const ROLE_LABEL: Record<Role, string> = {
-  master: "Administrateur de l'application",
-  admin: "Pasteur du campus",
-  shepherd: "Berger de famille",
+  master: "Super admin",
+  pastor: "Pasteur principal",
+  admin: "Leader du campus",
+  shepherd: "Berger de famille (BG)",
   assistant: "Assistant berger",
   maker: "Faiseur de disciples"
 };
 /** Berger ou assistant : gèrent la famille. */
 export const isLeader = (r?: Role) => r === "shepherd" || r === "assistant";
 /** Pasteur du campus ou administrateur de l'application. */
-export const isCampusAdmin = (r?: Role) => r === "admin" || r === "master";
+export const isCampusAdmin = (r?: Role) => r === "admin" || r === "master" || r === "pastor";
+/** Super admin ou pasteur principal : voient tous les campus. */
+export const isGlobal = (r?: Role) => r === "master" || r === "pastor";
 
 export interface Campus { id: string; name: string; city?: string; }
 
