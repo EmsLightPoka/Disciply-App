@@ -40,4 +40,5 @@ jobs:
         run: |
           echo "$SA" > "$RUNNER_TEMP/sa.json"
           export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/sa.json"
+          echo "Compte de service utilisé : $(node -p "require('$RUNNER_TEMP/sa.json').client_email" | sed 's/@/ (at) /')"
           npx firebase deploy --only hosting,firestore --project disciply-icc --non-interactive
