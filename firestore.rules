@@ -143,6 +143,14 @@ service cloud.firestore {
         isAdminOf(request.resource.data.campusId) || leads(request.resource.data.campusId, familyId));
     }
 
+    // ---------- Familles d'impact (FI le jeudi, FI jeunes le mardi) ----------
+    match /impactFamilies/{id} {
+      allow read: if inCampus(resource.data.campusId);
+      allow create: if isAdminOf(request.resource.data.campusId);
+      allow update: if isAdminOf(resource.data.campusId) && unchanged('campusId');
+      allow delete: if isAdminOf(resource.data.campusId);
+    }
+
     // ---------- Âmes ----------
     function canSeeSoul(s) {
       return isAdminOf(s.campusId)

@@ -111,6 +111,13 @@ describe("séparation des campus", () => {
     await assertFails(updateDoc(doc(as("pasteurdla"), "users/pp"), { role: "maker", familyId: "paix" }));
     await assertSucceeds(updateDoc(doc(as("master"), "users/grace"), { role: "pastor", familyId: null }));
   });
+  it("familles d'impact : le leader gère, le campus lit, un autre campus non", async () => {
+    const fi = { campusId: "yde", name: "FI Bastos", kind: "FI", quartiers: ["Bastos"], pilotName: "P", pilotPhone: "1", hostName: "H", hostPhone: "2" };
+    await assertSucceeds(setDoc(doc(as("pasteur"), "impactFamilies/f1"), fi));
+    await assertFails(setDoc(doc(as("grace"), "impactFamilies/f2"), fi));
+    await assertSucceeds(getDoc(doc(as("grace"), "impactFamilies/f1")));
+    await assertFails(getDoc(doc(as("pasteurdla"), "impactFamilies/f1")));
+  });
   it("un pasteur ne nomme pas d'administrateur de l'application", async () => {
     await assertFails(updateDoc(doc(as("pasteur"), "users/grace"), { role: "master" }));
     await assertSucceeds(updateDoc(doc(as("pasteur"), "users/grace"), { role: "shepherd" }));

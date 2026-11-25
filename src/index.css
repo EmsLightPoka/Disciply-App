@@ -288,3 +288,5 @@ table.t th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; 
 .sublist .empty { padding: 10px; }
 .row .track { height: 6px; background: var(--accent-soft); border-radius: 99px; overflow: hidden; max-width: 260px; }
 .row .track b { display: block; height: 100%; background: var(--grad); border-radius: 99px; }
+.seg button.e[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); color: #fff; }
+.pill.e { background: var(--warn-soft); color: var(--warn); }

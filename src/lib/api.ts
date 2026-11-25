@@ -149,10 +149,11 @@ export const addNote = (soulId: string, authorId: string, authorName: string, te
   addDoc(collection(db, "souls", soulId, "notes"), { text, kind, authorId, authorName, createdAt: serverTimestamp() });
 
 // ---------- Présences ----------
-export function markAttendance(uid: string, soul: Soul, date: string, present: boolean, reason?: string) {
+/** P : présent, A : absent, E : en attente (pas encore de retour). */
+export function markAttendance(uid: string, soul: Soul, date: string, present: boolean, reason?: string, pending = false) {
   return setDoc(doc(db, "attendances", `${date}_${soul.id}`), {
-    campusId: soul.campusId, soulId: soul.id, familyId: soul.familyId, makerId: soul.makerId, date, present,
-    reason: present ? null : reason ?? null, by: uid, at: serverTimestamp()
+    campusId: soul.campusId, soulId: soul.id, familyId: soul.familyId, makerId: soul.makerId, date, present: pending ? false : present, pending,
+    reason: present || pending ? null : reason ?? null, by: uid, at: serverTimestamp()
   });
 }
 
@@ -161,10 +162,13 @@ export const markRead = (id: string) => updateDoc(doc(db, "notifications", id), 
 
 // ---------- Rapports ----------
 export const makerReportId = (week: string, makerId: string) => `${week}_${makerId}`;
-export const submitMakerReport = (r: Omit<MakerReport, "id" | "submittedAt">) =>
-  setDoc(doc(db, "reports", makerReportId(r.week, r.makerId)), { ...r, submittedAt: serverTimestamp() });
+export const submitMakerReport = (r: Omit<MakerReport, "id" | "submittedAt" | "complementAt">, complement = false) =>
+  setDoc(doc(db, "reports", makerReportId(r.week, r.makerId)), { ...r, ...(complement ? { complementAt: serverTimestamp() } : { submittedAt: serverTimestamp() }) }, { merge: true });
 
 export const familyReportId = (week: string, familyId: string) => `${week}_${familyId}`;
+/** Mise à jour silencieuse (complément du jeudi) : le rapport déjà envoyé suit les pointages, sans nouvelle notification. */
+export const refreshFamilyReport = (id: string, data: { text: string; totals: FamilyReport["totals"]; sentBy: string; campusId: string; familyId: string }) =>
+  setDoc(doc(db, "familyReports", id), { ...data, updatedAt: serverTimestamp() }, { merge: true });
 export async function sendFamilyReport(r: Omit<FamilyReport, "id" | "sentAt">, pastors: UserProfile[]) {
   const b = writeBatch(db);
   b.set(doc(db, "familyReports", familyReportId(r.week, r.familyId)), { ...r, sentAt: serverTimestamp() });

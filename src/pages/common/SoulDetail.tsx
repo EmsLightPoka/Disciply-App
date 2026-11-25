@@ -14,6 +14,8 @@ import { STATUS_LABEL, stepCount, telHref, waHref } from "../../lib/souls";
 import { Avatar, Loading, Sheet, Top, frError, useToast } from "../../components/ui";
 import { IChat, IPhone, IPlus } from "../../components/Icons";
 import SoulForm from "./SoulForm";
+import { suggestImpact } from "../../lib/impact";
+import { IMPACT_LABEL } from "../../lib/types";
 
 type Modal = null | { kind: "step"; stepId: string } | { kind: "cancel"; stepId: string } | { kind: "note" } | { kind: "edit" }
   | { kind: "more" } | { kind: "assign" } | { kind: "transfer" } | { kind: "exit" } | { kind: "delete" } | { kind: "difficulty" } | { kind: "formation"; name: string };
@@ -23,7 +25,7 @@ export default function SoulDetail() {
   const nav = useNavigate();
   const toast = useToast();
   const { profile, settings, families, familyName } = useSession();
-  const { attendance, streak, workerName } = useScope();
+  const { attendance, pending: pendingMap, streak, workerName } = useScope();
   const soulQ = useDocument<Soul>(doc(db, "souls", id), [id]);
   const notesQ = useQuery<Note>(query(collection(db, "souls", id, "notes"), orderBy("createdAt", "desc")), [id]);
   const [modal, setModal] = useState<Modal>(null);
@@ -91,6 +93,8 @@ export default function SoulDetail() {
         })}
       </div></div>
 
+      <ImpactCard s={s} />
+
       <div className="eyebrow">Difficultés</div>
       {s.difficulty ? (
         <div className="card" style={{ borderColor: "var(--warn)" }}>
@@ -110,7 +114,8 @@ export default function SoulDetail() {
       <div className="eyebrow">8 derniers dimanches</div>
       <div className="pills">{lastSundays(8).map(d => {
         const a = att?.get(d);
-        return <span key={d} className={"pill " + (a ? (a.present ? "p" : "a") : "n")} title={`${shortDate(d)} : ${a ? (a.present ? "présent" : "absent" + (a.reason ? " (" + a.reason + ")" : "")) : "non pointé"}`}>{a ? (a.present ? "P" : "A") : "–"}</span>;
+        const e = !a && pendingMap.get(s.id)?.has(d);
+        return <span key={d} className={"pill " + (a ? (a.present ? "p" : "a") : e ? "e" : "n")} title={`${shortDate(d)} : ${a ? (a.present ? "présent" : "absent" + (a.reason ? " (" + a.reason + ")" : "")) : e ? "en attente (pas encore de retour)" : "non pointé"}`}>{a ? (a.present ? "P" : "A") : e ? "E" : "–"}</span>;
       })}</div>
 
       <div className="eyebrow">Notes <button className="btn ghost sm" style={{ flex: "none" }} onClick={() => setModal({ kind: "note" })}><IPlus />Ajouter</button></div>
@@ -207,4 +212,47 @@ export default function SoulDetail() {
       {me.role === "maker" && s.makerId !== uid && <p className="small"><Link to="/ames">Retour à mes âmes</Link></p>}
     </div>
   );
+}
+
+/** Famille d'impact de l'âme : la plus proche de son quartier, avec les contacts du pilote et de l'hôte. */
+function ImpactCard({ s }: { s: Soul }) {
+  const { profile } = useSession();
+  const { impact } = useScope();
+  const toast = useToast();
+  const [open, setOpen] = useState(false);
+  const fi = impact.find(f => f.id === s.impactFamilyId);
+  const sugg = suggestImpact(s, impact);
+  const best = sugg[0]?.near ? sugg[0].f : null;
+  const choose = (id: string | null) => updateSoul(profile!.id, s.id, { impactFamilyId: id }).then(() => { toast(id ? "Famille d'impact attribuée" : "Famille d'impact retirée"); setOpen(false); }).catch(e => toast(frError(e)));
+  const setYoung = (young: boolean) => updateSoul(profile!.id, s.id, { young }).catch(e => toast(frError(e)));
+  if (!impact.length && !fi) return null;
+  return <>
+    <div className="eyebrow">Famille d'impact</div>
+    {fi ? <div className="card">
+      <div className="serve"><b>{fi.name}</b><span className="chip">{IMPACT_LABEL[fi.kind]}</span></div>
+      <p className="small" style={{ margin: "6px 0" }}>{fi.quartiers.join(", ")}{fi.address ? ` · ${fi.address}` : ""}</p>
+      {[["Pilote", fi.pilotName, fi.pilotPhone], ["Hôte", fi.hostName, fi.hostPhone]].map(([l, n, p]) => (
+        <div className="row" key={l} style={{ padding: "8px 0", border: 0, background: "none", boxShadow: "none" }}>
+          <span className="main-col"><div className="name">{n || "—"}</div><div className="meta">{l}{p ? ` · ${p}` : ""}</div></span>
+          {p && <a className="iconbtn call" href={telHref(p)} aria-label={`Appeler ${l.toLowerCase()}`}><IPhone /></a>}
+          {p && <a className="iconbtn" href={waHref(p)} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${l.toLowerCase()}`}><IChat /></a>}
+        </div>))}
+      <div className="btnrow"><button className="btn ghost sm" onClick={() => setOpen(true)}>Changer</button></div>
+    </div> : <div className="card">
+      <p style={{ margin: "0 0 10px" }}>{best ? <>La plus proche de {s.neighborhood} : <b>{best.name}</b> ({IMPACT_LABEL[best.kind]}).</> : s.neighborhood ? `Aucune famille d'impact ne couvre encore le quartier ${s.neighborhood}.` : "Indique le quartier de l'âme pour trouver la famille d'impact la plus proche."}</p>
+      <div className="btnrow" style={{ marginTop: 0 }}>{best && <button className="btn primary sm" onClick={() => choose(best.id)}>Attribuer {best.name}</button>}<button className="btn ghost sm" onClick={() => setOpen(true)}>Choisir</button></div>
+    </div>}
+    {open && <Sheet title="Choisir une famille d'impact" onClose={() => setOpen(false)}>
+      <div className="field"><span className="label">Âge</span><div className="toggle">
+        <button type="button" aria-pressed={!!s.young} onClick={() => setYoung(true)}>Moins de 25 ans</button>
+        <button type="button" aria-pressed={!s.young} onClick={() => setYoung(false)}>25 ans et plus</button></div>
+        <span className="hint">Les moins de 25 ans peuvent aller dans une famille d'impact jeunes (le mardi).</span></div>
+      <div className="list">{sugg.map(({ f, near }) => (
+        <button key={f.id} className="row" onClick={() => choose(f.id)} aria-pressed={f.id === s.impactFamilyId}>
+          <span className="main-col"><div className="name">{f.name}{f.id === s.impactFamilyId ? " · actuelle" : ""}</div><div className="meta">{IMPACT_LABEL[f.kind]} · {f.quartiers.join(", ")}</div></span>
+          {near >= 2 && <span className="chip ok">Proche</span>}
+        </button>))}</div>
+      {s.impactFamilyId && <div className="btnrow"><button className="btn ghost" onClick={() => choose(null)}>Retirer la famille d'impact</button></div>}
+    </Sheet>}
+  </>;
 }

@@ -3,8 +3,8 @@ import { collection, query, where, Timestamp } from "firebase/firestore";
 import { db } from "./firebase";
 import { useQuery } from "./hooks";
 import { useSession } from "./session";
-import { isCampusAdmin, isLeader, type Attendance, type Notification, type ServiceSlot, type Soul, type UserProfile } from "./types";
-import { absenceStreak, indexAttendance } from "./souls";
+import { isCampusAdmin, isLeader, type Attendance, type ImpactFamily, type Notification, type ServiceSlot, type Soul, type UserProfile } from "./types";
+import { absenceStreak, indexAttendance, indexPending } from "./souls";
 import { addDays, currentSunday } from "./dates";
 
 /** Les données visibles par la personne connectée, selon son rôle et son campus. */
@@ -13,6 +13,8 @@ interface Scope {
   souls: Soul[];
   active: Soul[];
   attendance: Map<string, Map<string, Attendance>>;
+  /** Âmes « en attente » (E) par dimanche : pas encore de retour. */
+  pending: Map<string, Set<string>>;
   streak: (soulId: string) => number;
   workers: UserProfile[];
   workerName: (id: string | null | undefined) => string;
@@ -20,6 +22,7 @@ interface Scope {
   /** Les cultes où ma famille sert et où je peux encore enregistrer des âmes. */
   openServices: ServiceSlot[];
   notifications: Notification[];
+  impact: ImpactFamily[];
 }
 const Ctx = createContext<Scope | null>(null);
 
@@ -49,6 +52,7 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
     : admin ? query(collection(db, "users"), where("campusId", "==", camp))
     : query(collection(db, "users"), where("campusId", "==", camp), where("familyId", "==", fam)), [role, fam, camp]);
   const services = useQuery<ServiceSlot>(camp ? query(collection(db, "services"), where("campusId", "==", camp), where("date", ">=", addDays(currentSunday(), -35))) : null, [camp]);
+  const impact = useQuery<ImpactFamily>(camp ? query(collection(db, "impactFamilies"), where("campusId", "==", camp)) : null, [camp]);
   const notifs = useQuery<Notification>(uid ? query(collection(db, "notifications"), where("userId", "==", uid)) : null, [uid]);
 
   const value = useMemo<Scope>(() => {
@@ -66,14 +70,16 @@ export function ScopeProvider({ children }: { children: ReactNode }) {
       souls: list,
       active: list.filter(s => s.state === "active"),
       attendance: idx,
+      pending: indexPending(att.data),
       streak: id => absenceStreak(idx.get(id), sunday),
       workers: ws,
       workerName: id => (id ? ws.find(w => w.id === id)?.name ?? (id === uid ? profile?.name ?? "Moi" : "Ouvrier") : "Pas encore attribuée"),
       services: [...services.data].sort((a, b) => (a.date + a.slot).localeCompare(b.date + b.slot)),
       openServices: open,
+      impact: [...impact.data].sort((a, b) => a.name.localeCompare(b.name, "fr")),
       notifications: [...notifs.data].sort((a, b) => (b.createdAt?.toMillis() ?? now) - (a.createdAt?.toMillis() ?? now))
     };
-  }, [souls.data, souls.loading, created.data, att.data, workers.data, services.data, notifs.data, uid, fam, maker, profile?.name]);
+  }, [souls.data, souls.loading, created.data, att.data, workers.data, services.data, notifs.data, impact.data, uid, fam, maker, profile?.name]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

@@ -29,6 +29,7 @@ import Settings from "./pages/admin/Settings";
 import Campuses from "./pages/admin/Campuses";
 import Archives from "./pages/common/Archives";
 import FamilyDetail from "./pages/admin/FamilyDetail";
+import ImpactFamilies from "./pages/admin/ImpactFamilies";
 
 const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/campus", pastor: "/campus" };
 
@@ -84,6 +85,7 @@ export default function App() {
           {admin && <Route path="/eglise" element={<Church />} />}
           {admin && <Route path="/familles" element={<Families />} />}
           {admin && <Route path="/familles/:id" element={<FamilyDetail />} />}
+          {admin && <Route path="/familles-impact" element={<ImpactFamilies />} />}
           {admin && <Route path="/reglages" element={<Settings />} />}
           {(role === "master" || role === "pastor") && <Route path="/campus" element={<Campuses />} />}
           <Route path="*" element={<Navigate to={home} replace />} />

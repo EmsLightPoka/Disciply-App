@@ -96,11 +96,15 @@ export interface MakerReport {
   present: number;
   absent: number;
   notPointed: number;
+  /** Âmes « E » : en attente, pas encore de retour. */
+  pending?: number;
   newAssigned: number;
   difficulties: { soulName: string; text: string }[];
   formations: { soulName: string; text: string }[];
   comment: string;
   submittedAt?: Timestamp;
+  /** Dernière mise à jour par le complément du jeudi. */
+  complementAt?: Timestamp;
 }
 
 export interface FamilyReport {
@@ -110,7 +114,7 @@ export interface FamilyReport {
   familyName: string;
   week: string;
   text: string;
-  totals: { souls: number; present: number; absent: number; newSouls: number; reports: number; makers: number };
+  totals: { souls: number; present: number; absent: number; pending?: number; newSouls: number; reports: number; makers: number };
   comment: string;
   sentBy: string;
   sentByName: string;
@@ -153,12 +157,30 @@ export interface Soul {
   exitReason?: string;
   exitDate?: string;
   inviter?: string;
+  /** Moins de 25 ans : peut aller dans une famille d'impact jeunes (mardi). */
+  young?: boolean;
+  impactFamilyId?: string | null;
   history?: HistoryEntry[];
   createdAt?: Timestamp;
   createdBy?: string;
   updatedAt?: Timestamp;
   updatedBy?: string;
 }
+
+/** Famille d'impact (FI, le jeudi) ou famille d'impact jeunes (FIJ, moins de 25 ans, le mardi). */
+export interface ImpactFamily {
+  id: string;
+  campusId: string;
+  name: string;
+  kind: "FI" | "FIJ";
+  quartiers: string[];
+  address?: string;
+  pilotName: string;
+  pilotPhone: string;
+  hostName: string;
+  hostPhone: string;
+}
+export const IMPACT_LABEL = { FI: "Famille d'impact · jeudi", FIJ: "Famille d'impact jeunes · mardi" } as const;
 
 export interface Attendance {
   id: string;
@@ -168,6 +190,8 @@ export interface Attendance {
   makerId: string | null;
   date: string;
   present: boolean;
+  /** « E » : en attente, pas encore de retour (à confirmer au complément du jeudi). */
+  pending?: boolean;
   reason?: string;
   by: string;
 }

@@ -22,6 +22,7 @@ const adminNav: Item[] = [
   ["/eglise", "Campus", <IChurch />, true],
   ["/programme", "Programme", <ISchedule />, true],
   ["/familles", "Familles", <IChart />, false],
+  ["/familles-impact", "Familles d'impact", <IHome />, false],
   ["/equipe", "Ouvriers", <IWorker />, false],
   ["/ames", "Âmes", <IUsers />, false],
   ["/a-attribuer", "À attribuer", <IInbox />, false],

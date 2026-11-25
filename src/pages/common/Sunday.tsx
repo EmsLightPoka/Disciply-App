@@ -12,7 +12,7 @@ import { ICloud } from "../../components/Icons";
 /** Pointage du dimanche : un seul pointage par âme et par dimanche. */
 export default function Sunday() {
   const { profile, settings } = useSession();
-  const { active, attendance, workerName, loading } = useScope();
+  const { active, attendance, pending: waiting, workerName, loading } = useScope();
   const online = useOnline();
   const toast = useToast();
   const [date, setDate] = useState(currentSunday());
@@ -24,14 +24,16 @@ export default function Sunday() {
 
   const me = profile!;
   const list = active.filter(s => s.name.toLowerCase().includes(q.toLowerCase()));
-  const done = active.filter(s => attendance.get(s.id)?.get(date)).length;
+  const isE = (s: Soul) => !!waiting.get(s.id)?.has(date);
+  const done = active.filter(s => attendance.get(s.id)?.get(date) || isE(s)).length;
+  const nbE = active.filter(isE).length;
 
-  function mark(s: Soul, present: boolean, reason?: string) {
+  function mark(s: Soul, present: boolean, reason?: string, pend = false) {
     if (!online) setPending(p => p + 1);
-    markAttendance(me.id, s, date, present, reason).catch(e => toast(frError(e)));
+    markAttendance(me.id, s, date, present, reason, pend).catch(e => toast(frError(e)));
   }
   function allPresent() {
-    const rest = active.filter(s => !attendance.get(s.id)?.get(date));
+    const rest = active.filter(s => !attendance.get(s.id)?.get(date) && !isE(s));
     rest.forEach(s => mark(s, true));
     toast(rest.length ? `${rest.length} âme${rest.length > 1 ? "s" : ""} marquée${rest.length > 1 ? "s" : ""} présente${rest.length > 1 ? "s" : ""}` : "Tout le monde est déjà pointé");
   }
@@ -44,7 +46,7 @@ export default function Sunday() {
         return <button key={v} aria-pressed={v === date} onClick={() => setDate(v)}>{v === today() ? "Aujourd'hui" : v === currentSunday() ? "Ce dimanche" : longDate(v).replace(/^dimanche /, "Dim. ")}</button>;
       })}</div>
       {(!online || pending > 0) && <div className="sync"><ICloud />Pas de réseau. Les pointages sont gardés sur le téléphone et partiront dès que la connexion revient.</div>}
-      <div className="small">{done} sur {active.length} pointées</div>
+      <div className="small">{done} sur {active.length} pointées{nbE ? ` · ${nbE} en attente (E), à confirmer au complément du jeudi` : ""}</div>
       <div className="progress"><b style={{ width: `${active.length ? (done / active.length) * 100 : 0}%` }} /></div>
       {active.length > 8 && <div className="field" style={{ margin: "10px 0 0" }}><input placeholder="Chercher un nom" value={q} onChange={e => setQ(e.target.value)} aria-label="Chercher un nom" /></div>}
 
@@ -56,16 +58,17 @@ export default function Sunday() {
               <Avatar name={s.name} />
               <span className="main-col">
                 <div className="name">{s.name}</div>
-                <div className="meta">{a && !a.present ? <span style={{ color: "var(--bad)" }}>Absent · {a.reason ?? "motif non indiqué"}</span> : me.role === "maker" ? STATUS_LABEL[s.status] : workerName(s.makerId)}</div>
+                <div className="meta">{isE(s) ? <span style={{ color: "var(--warn)" }}>En attente · pas encore de retour</span> : a && !a.present ? <span style={{ color: "var(--bad)" }}>Absent · {a.reason ?? "motif non indiqué"}</span> : me.role === "maker" ? STATUS_LABEL[s.status] : workerName(s.makerId)}</div>
               </span>
               <div className="seg">
                 <button className="p" aria-pressed={a?.present === true} aria-label={`${s.name} présent`} onClick={() => mark(s, true)}>P</button>
                 <button className="a" aria-pressed={a?.present === false} aria-label={`${s.name} absent`} onClick={() => setAskFor(s)}>A</button>
+                <button className="e" aria-pressed={isE(s)} aria-label={`${s.name} en attente, pas encore de retour`} title="En attente : pas encore de retour" onClick={() => mark(s, false, undefined, true)}>E</button>
               </div>
             </div>);
         })}</div>)}
       {active.length > 0 && <div className="btnrow"><button className="btn ghost" onClick={allPresent}>Marquer les autres présents</button></div>}
-      <p className="small" style={{ textAlign: "center" }}>Chaque pointage est enregistré tout de suite.</p>
+      <p className="small" style={{ textAlign: "center" }}>P : présent · A : absent · E : en attente (pas encore de retour). Chaque pointage est enregistré tout de suite. Les « E » se confirment au plus tard le jeudi (complément du rapport) : les rapports se mettent à jour tout seuls.</p>
 
       {askFor && (
         <Sheet title={`Pourquoi ${askFor.name.split(" ")[0]} est absent(e) ?`} onClose={() => setAskFor(null)}>

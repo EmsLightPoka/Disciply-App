@@ -3,6 +3,8 @@ import { deleteDoc, doc } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { Link } from "react-router-dom";
 import { DEMO_DOMAIN, DEMO_PASSWORD, isDemoCampus, seedDemo } from "../../lib/demo";
+import { addService } from "../../lib/api";
+import { today } from "../../lib/dates";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { currentSunday } from "../../lib/dates";
@@ -36,6 +38,7 @@ export default function Church() {
       <Top title="Vue du campus" sub={campus?.name ? (/^campus/i.test(campus.name) ? campus.name : `Campus ${campus.name}`) : settings.churchName} right={families.length > 0 ? <Link to="/equipe?inviter=1" className="btn primary sm"><IPlus />Ouvrier</Link> : undefined} />
       {canSeed && <DemoSeed />}
       <Duplicates />
+      {isDemoCampus(campus?.name) && families.length > 0 && <TestService />}
       {families.length === 0 && !canSeed && <div className="hero" style={{ marginBottom: 16 }}>
         <span className="big">Pour commencer, crée les familles de disciples</span>
         <span className="small">Ensuite, ajoute les ouvriers : un berger pour chaque famille, puis les faiseurs de disciples (bouton « + Ouvrier »).</span>
@@ -120,5 +123,29 @@ function Duplicates() {
         setBusy(true); setErr("");
         try { for (const id of extra) await deleteDoc(doc(db, "families", id)); } catch (e) { setErr(frError(e)); } finally { setBusy(false); }
       }}>{busy ? "Suppression…" : "Supprimer les doublons"}</button>
+    </div>);
+}
+
+/** Campus de démonstration : ouvrir un « culte de test » aujourd'hui pour essayer l'enregistrement des NC et NA. */
+function TestService() {
+  const { families, campusId, familyName } = useSession();
+  const { services } = useScope();
+  const [fam, setFam] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const open = services.filter(s => s.date === today());
+  const f = families.find(x => x.id === fam) ?? families[0];
+  const slug = (n: string) => n.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+  return (
+    <div className="card" style={{ marginBottom: 16 }}>
+      <h2 style={{ fontSize: 17, marginTop: 0 }}>Tester un jour de culte</h2>
+      <p className="small">L'enregistrement des nouvelles âmes n'est ouvert qu'à la famille de service, le jour du culte. Pour essayer dès maintenant, ouvre un culte de test aujourd'hui pour une famille, puis connecte-toi avec un de ses faiseurs (mot de passe {DEMO_PASSWORD}).</p>
+      {open.length > 0 && <div className="success">Ouvert aujourd'hui : {open.map(s => `Famille ${familyName(s.familyId)} (${s.slot})`).join(", ")}. Essaie avec faiseur1.{slug(familyName(open[0].familyId))}@{DEMO_DOMAIN}.</div>}
+      {err && <div className="error">{err}</div>}
+      <div className="field"><label htmlFor="ts-fam">Famille de service</label><select id="ts-fam" value={f?.id ?? ""} onChange={e => setFam(e.target.value)}>{families.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}</select></div>
+      <button className="btn primary" disabled={busy || !f} onClick={async () => {
+        setBusy(true); setErr("");
+        try { await addService(campusId!, today(), "Culte de test", 9, f!.id); } catch (e) { setErr(frError(e)); } finally { setBusy(false); }
+      }}>Ouvrir un culte de test aujourd'hui</button>
     </div>);
 }

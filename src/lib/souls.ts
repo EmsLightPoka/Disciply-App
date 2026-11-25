@@ -4,10 +4,11 @@ import { lastSundays } from "./dates";
 export const stepCount = (s: Soul, settings: Settings) => settings.steps.filter(st => s.steps?.[st.id]).length;
 export const nextStep = (s: Soul, settings: Settings) => settings.steps.find(st => !s.steps?.[st.id]) ?? null;
 
-/** Index des présences : soulId -> date -> présence */
+/** Index des présences confirmées (P ou A) : soulId -> date -> présence. Les « en attente » sont à part. */
 export function indexAttendance(list: Attendance[]): Map<string, Map<string, Attendance>> {
   const m = new Map<string, Map<string, Attendance>>();
   for (const a of list) {
+    if (a.pending) continue;
     if (!m.has(a.soulId)) m.set(a.soulId, new Map());
     m.get(a.soulId)!.set(a.date, a);
   }
@@ -25,6 +26,13 @@ export function absenceStreak(byDate: Map<string, Attendance> | undefined, upTo:
     n++;
   }
   return n;
+}
+
+/** soulId -> dimanches « en attente » (pas encore de retour). */
+export function indexPending(list: Attendance[]): Map<string, Set<string>> {
+  const m = new Map<string, Set<string>>();
+  for (const a of list) if (a.pending) { if (!m.has(a.soulId)) m.set(a.soulId, new Set()); m.get(a.soulId)!.add(a.date); }
+  return m;
 }
 
 export const initials = (name: string) => name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
