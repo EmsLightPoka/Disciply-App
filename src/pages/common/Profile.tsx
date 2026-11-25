@@ -14,12 +14,13 @@ export default function Profile() {
   const [name, setName] = useState(me.name);
   const [phone, setPhone] = useState(me.phone ?? "");
   const [gender, setGender] = useState<"F" | "H" | undefined>(me.gender);
+  const [age, setAge] = useState<string>(me.age != null ? String(me.age) : "");
   const [busy, setBusy] = useState(false);
   const theme = me.theme ?? (document.documentElement.dataset.theme as "light" | "dark" | undefined) ?? "system";
 
   async function save() {
     setBusy(true);
-    try { await updateUser(me.id, { name: name.trim(), phone: phone.trim(), ...(gender ? { gender } : {}) }); toast("Profil enregistré"); }
+    try { await updateUser(me.id, { name: name.trim(), phone: phone.trim(), age: age === "" ? null : Number(age), ...(gender ? { gender } : {}) }); toast("Profil enregistré"); }
     catch (e) { toast(frError(e)); } finally { setBusy(false); }
   }
   async function setTheme(t: "light" | "dark" | "system") { applyTheme(t); updateUser(me.id, { theme: t }).catch(() => {}); }
@@ -44,6 +45,7 @@ export default function Profile() {
         <div className="field"><label>Sexe</label><div className="toggle">
           <button type="button" aria-pressed={gender === "F"} onClick={() => setGender("F")}>Femme</button>
           <button type="button" aria-pressed={gender === "H"} onClick={() => setGender("H")}>Homme</button></div></div>
+        <div className="field"><label htmlFor="p-age">Âge</label><input id="p-age" type="number" inputMode="numeric" min={12} max={110} value={age} onChange={e => setAge(e.target.value)} /><span className="hint">Les âmes de ta tranche d'âge te seront confiées de préférence.</span></div>
         <div className="field"><label>E-mail de connexion</label><input value={me.email} disabled /></div>
         <button className="btn primary block" disabled={busy || !name.trim()} onClick={save}>Enregistrer</button>
       </div>

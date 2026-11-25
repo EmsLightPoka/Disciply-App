@@ -92,7 +92,7 @@ service cloud.firestore {
           // Seul le super admin nomme ou retire un pasteur principal.
           && ((request.resource.data.role != 'pastor' && resource.data.role != 'pastor') || isMaster()))
         // Chacun : son nom, son téléphone, son sexe, son thème.
-        || (request.auth.uid == uid && onlyChanges(['name', 'phone', 'theme', 'gender']))
+        || (request.auth.uid == uid && onlyChanges(['name', 'phone', 'theme', 'gender', 'age']))
         // L'administrateur de l'application choisit le campus sur lequel il travaille.
         || (request.auth.uid == uid && isGlobal() && onlyChanges(['campusId']))
         // Le berger nomme ou retire un assistant parmi les faiseurs de sa famille.

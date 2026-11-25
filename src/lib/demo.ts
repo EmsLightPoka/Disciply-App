@@ -1,6 +1,6 @@
 import { collection, doc, serverTimestamp, writeBatch } from "firebase/firestore";
 import { db } from "./firebase";
-import { addService, createAccountNow, createFamily, createInvitation, updateFamily } from "./api";
+import { addService, createAccountNow, createFamily, createInvitation, updateFamily, updateUser } from "./api";
 import { getDocs, query, where } from "firebase/firestore";
 import { addDays, currentSunday, lastSundays } from "./dates";
 import type { Invitation, Role, Settings, UserProfile } from "./types";
@@ -55,7 +55,7 @@ export async function seedDemo(me: UserProfile, campusId: string, campusName: st
     for (let i = 1; i <= 3; i++) {
       const g: "F" | "H" = i === 3 ? "H" : "F";
       const uid = await account(`${pick(g === "F" ? F_FIRST : H_FIRST)} ${pick(LAST)}`, g, "maker", ref.id, fam, `faiseur${i}.${fs}@${DEMO_DOMAIN}`);
-      if (uid) makers.push({ id: uid, familyId: ref.id, gender: g });
+      if (uid) { makers.push({ id: uid, familyId: ref.id, gender: g }); await updateUser(uid, { age: [22, 34, 47][i - 1] }); }
     }
   }
   // Programme de service : ce dimanche et les 4 suivants, une famille par culte, à tour de rôle.
@@ -105,9 +105,10 @@ export async function seedSouls(me: UserProfile, campusId: string, settings: Set
       const exited = rnd() < 0.06;
       const established = !exited && level === steps.length;
       const name = `${pick(gender === "F" ? F_FIRST : H_FIRST)} ${pick(LAST)}`;
+      const age = 16 + Math.floor(rnd() * 45);
       const difficulty = rnd() < 0.1 ? { kind: pick(settings.difficulties.length ? settings.difficulties : ["Autre"]), text: "Exemple de difficulté (donnée de démonstration).", at: addDays(currentSunday(), -7 * Math.floor(rnd() * 3)) } : null;
       const soulId = await put("souls", null, {
-        name, phone: phone(), gender, neighborhood: pick(QUARTIERS), status: rnd() < 0.65 ? "NC" : "NA",
+        name, phone: phone(), gender, age, young: age < 25, neighborhood: pick(QUARTIERS), status: rnd() < 0.65 ? "NC" : "NA",
         service: pick(settings.services.length ? settings.services : ["1er culte"]), arrivalDate: arrival,
         familyId, makerId: maker?.id ?? null, campusId, steps: stepRec, formations, difficulty,
         state: exited ? "exited" : established ? "established" : "active",

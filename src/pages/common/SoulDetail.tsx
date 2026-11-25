@@ -10,7 +10,7 @@ import { addNote, cancelStep, establishSoul, exitSoul, reinstateSoul, reportDiff
 import { isCampusAdmin, isLeader } from "../../lib/types";
 import AssignSheet from "../../components/AssignSheet";
 import { fullDate, lastSundays, shortDate, today } from "../../lib/dates";
-import { STATUS_LABEL, stepCount, telHref, waHref } from "../../lib/souls";
+import { STATUS_LABEL, ageBand, stepCount, telHref, waHref } from "../../lib/souls";
 import { Avatar, Loading, Sheet, Top, frError, useToast } from "../../components/ui";
 import { IChat, IPhone, IPlus } from "../../components/Icons";
 import SoulForm from "./SoulForm";
@@ -126,6 +126,7 @@ export default function SoulDetail() {
       <div className="eyebrow">Informations <button className="btn ghost sm" style={{ flex: "none" }} onClick={() => setModal({ kind: "edit" })}>Modifier</button></div>
       <div className="card"><dl className="kv">
         <dt>Téléphone</dt><dd>{s.phone || "—"}</dd>
+        <dt>Âge</dt><dd>{s.age != null ? `${s.age} ans · ${ageBand(s.age)}` : "—"}</dd>
         <dt>Quartier</dt><dd>{s.neighborhood || "—"}</dd>
         <dt>Sexe</dt><dd>{s.gender === "F" ? "Femme" : "Homme"}</dd>
         <dt>Culte</dt><dd>{s.service}</dd>
@@ -224,7 +225,6 @@ function ImpactCard({ s }: { s: Soul }) {
   const sugg = suggestImpact(s, impact);
   const best = sugg[0]?.near ? sugg[0].f : null;
   const choose = (id: string | null) => updateSoul(profile!.id, s.id, { impactFamilyId: id }).then(() => { toast(id ? "Famille d'impact attribuée" : "Famille d'impact retirée"); setOpen(false); }).catch(e => toast(frError(e)));
-  const setYoung = (young: boolean) => updateSoul(profile!.id, s.id, { young }).catch(e => toast(frError(e)));
   if (!impact.length && !fi) return null;
   return <>
     <div className="eyebrow">Famille d'impact</div>
@@ -243,10 +243,7 @@ function ImpactCard({ s }: { s: Soul }) {
       <div className="btnrow" style={{ marginTop: 0 }}>{best && <button className="btn primary sm" onClick={() => choose(best.id)}>Attribuer {best.name}</button>}<button className="btn ghost sm" onClick={() => setOpen(true)}>Choisir</button></div>
     </div>}
     {open && <Sheet title="Choisir une famille d'impact" onClose={() => setOpen(false)}>
-      <div className="field"><span className="label">Âge</span><div className="toggle">
-        <button type="button" aria-pressed={!!s.young} onClick={() => setYoung(true)}>Moins de 25 ans</button>
-        <button type="button" aria-pressed={!s.young} onClick={() => setYoung(false)}>25 ans et plus</button></div>
-        <span className="hint">Les moins de 25 ans peuvent aller dans une famille d'impact jeunes (le mardi).</span></div>
+      <p className="small" style={{ marginTop: 0 }}>{s.age != null ? `${s.age} ans${s.age < 25 ? " : les familles d'impact jeunes (mardi) sont proposées en premier." : "."}` : "Âge non renseigné : indique-le dans Informations, Modifier."}</p>
       <div className="list">{sugg.map(({ f, near }) => (
         <button key={f.id} className="row" onClick={() => choose(f.id)} aria-pressed={f.id === s.impactFamilyId}>
           <span className="main-col"><div className="name">{f.name}{f.id === s.impactFamilyId ? " · actuelle" : ""}</div><div className="meta">{IMPACT_LABEL[f.kind]} · {f.quartiers.join(", ")}</div></span>

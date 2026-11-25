@@ -62,7 +62,7 @@ export default function Team() {
             <Avatar name={w.name} />
             <span className="main-col">
               <div className="name">{w.name}{w.id === me.id ? " (moi)" : ""}</div>
-              <div className="meta">{ROLE_LABEL[w.role]}{isAdmin && w.familyId ? ` · ${familyName(w.familyId)}` : ""}{w.gender ? ` · ${w.gender === "F" ? "Femme" : "Homme"}` : ""}{w.role === "maker" || w.role === "assistant" ? ` · ${load(w.id)} âmes${r !== null ? ` · présence ${r} %` : ""}` : ""}</div>
+              <div className="meta">{ROLE_LABEL[w.role]}{isAdmin && w.familyId ? ` · ${familyName(w.familyId)}` : ""}{w.gender ? ` · ${w.gender === "F" ? "Femme" : "Homme"}` : ""}{w.age != null ? ` · ${w.age} ans` : ""}{w.role === "maker" || w.role === "assistant" ? ` · ${load(w.id)} âmes${r !== null ? ` · présence ${r} %` : ""}` : ""}</div>
             </span>
             {!w.active && <span className="chip bad">Désactivé</span>}
           </button>);
@@ -172,6 +172,7 @@ function EditWorker({ w, onClose }: { w: UserProfile; onClose: () => void }) {
   const toast = useToast();
   const [role, setRole] = useState<Role>(w.role);
   const [familyId, setFamilyId] = useState(w.familyId ?? "");
+  const [age, setAge] = useState(w.age != null ? String(w.age) : "");
   const [busy, setBusy] = useState(false);
   const self = w.id === profile!.id;
   async function save(data: Partial<UserProfile>, ok: string) {
@@ -183,9 +184,10 @@ function EditWorker({ w, onClose }: { w: UserProfile; onClose: () => void }) {
       <p className="small" style={{ marginTop: 0 }}>{w.email}{w.phone ? ` · ${w.phone}` : ""} · {familyName(w.familyId)}</p>
       <div className="field"><label htmlFor="e-role">Rôle</label><select id="e-role" value={role} disabled={self} onChange={e => setRole(e.target.value as Role)}>
         {(["maker", "assistant", "shepherd", "admin", ...(profile!.role === "master" || w.role === "pastor" ? ["pastor" as Role] : [])] as Role[]).map(r => <option key={r} value={r}>{ROLE_LABEL[r]}</option>)}</select></div>
+      <div className="field"><label htmlFor="e-age">Âge</label><input id="e-age" type="number" inputMode="numeric" min={12} max={110} value={age} onChange={e => setAge(e.target.value)} /></div>
       {role !== "admin" && role !== "pastor" && <div className="field"><label htmlFor="e-fam">Famille</label><select id="e-fam" value={familyId} onChange={e => setFamilyId(e.target.value)}>
         <option value="">Choisir…</option>{families.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}</select></div>}
-      <button className="btn primary block" disabled={busy || (role !== "admin" && role !== "pastor" && !familyId)} onClick={() => save({ role, familyId: role === "admin" || role === "pastor" ? null : familyId }, "Compte mis à jour")}>Enregistrer</button>
+      <button className="btn primary block" disabled={busy || (role !== "admin" && role !== "pastor" && !familyId)} onClick={() => save({ role, age: age === "" ? null : Number(age), familyId: role === "admin" || role === "pastor" ? null : familyId }, "Compte mis à jour")}>Enregistrer</button>
       {!self && <div className="btnrow">
         <button className={"btn " + (w.active ? "danger" : "ghost")} disabled={busy} onClick={() => save({ active: !w.active }, w.active ? "Compte désactivé" : "Compte réactivé")}>{w.active ? "Désactiver le compte" : "Réactiver le compte"}</button>
       </div>}

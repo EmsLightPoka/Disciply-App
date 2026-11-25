@@ -27,6 +27,8 @@ export interface UserProfile {
   campusId: string | null;
   familyId: string | null;
   gender?: "F" | "H";
+  /** Âge du faiseur : on lui confie de préférence des âmes de sa tranche d'âge. */
+  age?: number | null;
   active: boolean;
   theme?: "light" | "dark" | "system";
   inviteId?: string;
@@ -159,6 +161,7 @@ export interface Soul {
   inviter?: string;
   /** Moins de 25 ans : peut aller dans une famille d'impact jeunes (mardi). */
   young?: boolean;
+  age?: number | null;
   impactFamilyId?: string | null;
   history?: HistoryEntry[];
   createdAt?: Timestamp;

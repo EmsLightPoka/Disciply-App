@@ -8,7 +8,7 @@ const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCa
  * Les familles d'impact proposées pour une âme, la plus proche d'abord :
  * même quartier en premier, puis quartier approchant ; FI jeunes en tête pour les moins de 25 ans.
  */
-export function suggestImpact(soul: Pick<Soul, "neighborhood" | "young">, list: ImpactFamily[]) {
+export function suggestImpact(soul: Pick<Soul, "neighborhood" | "young" | "age">, list: ImpactFamily[]) {
   const q = norm(soul.neighborhood ?? "");
   const score = (f: ImpactFamily) => {
     let sc = 0;
@@ -20,7 +20,7 @@ export function suggestImpact(soul: Pick<Soul, "neighborhood" | "young">, list: 
     }
     return sc;
   };
-  const wanted = soul.young ? "FIJ" : "FI";
+  const wanted = (soul.age != null ? soul.age < 25 : soul.young) ? "FIJ" : "FI";
   return list
     .map(f => ({ f, near: score(f) }))
     .sort((a, b) => (b.near - a.near) || (Number(b.f.kind === wanted) - Number(a.f.kind === wanted)) || a.f.name.localeCompare(b.f.name, "fr"));

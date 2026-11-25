@@ -35,6 +35,12 @@ export function indexPending(list: Attendance[]): Map<string, Set<string>> {
   return m;
 }
 
+/** Tranches d'âge utilisées pour l'attribution des faiseurs. */
+export function ageBand(age?: number | null): string | null {
+  if (age == null || Number.isNaN(age)) return null;
+  return age < 25 ? "Moins de 25 ans" : age < 35 ? "25 à 34 ans" : age < 50 ? "35 à 49 ans" : "50 ans et plus";
+}
+
 export const initials = (name: string) => name.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join("").toUpperCase();
 
 export function normalizePhone(p: string) { return p.replace(/[^\d+]/g, ""); }
