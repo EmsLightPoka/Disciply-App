@@ -290,3 +290,22 @@ table.t th { font-size: 12px; text-transform: uppercase; letter-spacing: .05em; 
 .row .track b { display: block; height: 100%; background: var(--grad); border-radius: 99px; }
 .seg button.e[aria-pressed="true"] { background: var(--warn); border-color: var(--warn); color: #fff; }
 .pill.e { background: var(--warn-soft); color: var(--warn); }
+.dash { display: grid; gap: 12px; margin-bottom: 8px; }
+.dash-h { font-size: 15px; margin-bottom: 10px; }
+.dash-h b { font-family: "Plus Jakarta Sans", sans-serif; font-size: 26px; color: var(--fg); margin-right: 4px; }
+.stack { display: flex; height: 16px; border-radius: 99px; overflow: hidden; background: var(--surface-2); gap: 2px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 10px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.legend b { color: var(--fg); font-weight: 600; }
+.gauge { display: flex; align-items: center; gap: 12px; }
+.ring { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; flex: none; }
+.ring span { width: 48px; height: 48px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 700; font-size: 13px; color: var(--fg); }
+.gl { font-weight: 600; font-size: 13.5px; }
+.funnel { display: grid; gap: 10px; }
+.fr { display: grid; grid-template-columns: minmax(90px, 150px) 1fr auto auto; align-items: center; gap: 10px; font-size: 13.5px; }
+.fr .track { height: 10px; background: var(--accent-soft); border-radius: 99px; overflow: hidden; }
+.fr .track b { display: block; height: 100%; background: var(--grad); border-radius: 99px; }
+.fr .fn { color: var(--muted); white-space: nowrap; } .fr .fn b { color: var(--fg); }
+.fr .fd { color: var(--bad); font-weight: 600; font-size: 12px; min-width: 34px; text-align: right; }
+.fr.worst .fl { color: var(--bad); font-weight: 600; }
+@media (max-width: 520px) { .fr { grid-template-columns: 1fr auto auto; } .fr .track { grid-column: 1 / -1; grid-row: 2; } }

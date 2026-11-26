@@ -34,6 +34,12 @@ export default function Today() {
         {active.length > 0 && <Link to="/dimanche" className="btn grad" style={{ alignSelf: "flex-start" }}>{isSunday && toPoint ? "Commencer le pointage" : "Ouvrir le pointage"}</Link>}
       </div>
 
+      {new Date().getDay() === 6 ? <div className="hero" style={{ marginTop: 12 }}>
+        <span className="big">C'est samedi : invite tes âmes au culte de demain</span>
+        <span className="small">Un message WhatsApp ou SMS, avec le billet d'invitation en image.</span>
+        <Link to="/invitations" className="btn grad" style={{ alignSelf: "flex-start" }}>Envoyer les invitations</Link>
+      </div> : <Link to="/invitations" className="row" style={{ marginTop: 12 }}><span className="main-col"><div className="name">Invitations au culte</div><div className="meta">À envoyer chaque samedi matin</div></span><span aria-hidden="true">›</span></Link>}
+
       {famStats && <>
         <div className="eyebrow">Ma famille{myFamily ? ` · ${myFamily.name}` : ""}</div>
         <StatTiles s={famStats} />

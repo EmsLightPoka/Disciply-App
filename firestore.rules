@@ -160,6 +160,13 @@ service cloud.firestore {
       allow delete: if isAdminOf(resource.data.campusId);
     }
 
+    // ---------- Journal : ce qui est supprimé laisse une trace (rien ne s'efface en silence) ----------
+    match /audit/{id} {
+      allow read: if isAdminOf(resource.data.campusId);
+      allow create: if isAdminOf(request.resource.data.campusId) && request.resource.data.by == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ---------- Âmes ----------
     function canSeeSoul(s) {
       return isAdminOf(s.campusId)
@@ -186,7 +193,9 @@ service cloud.firestore {
             && serviceOpen(request.resource.data.serviceId, 'makersUntil')
             && request.resource.data.makersUntil == get(/databases/$(database)/documents/services/$(request.resource.data.serviceId)).data.makersUntil));
 
-      allow update: if unchanged('campusId') && unchanged('createdBy') && (
+      allow update: if unchanged('createdBy') && (
+        // Super admin et pasteur principal : peuvent aussi transférer l'âme vers un autre campus.
+        isGlobal() || unchanged('campusId') && (
         isAdminOf(resource.data.campusId)
         // Berger et assistant : tout dans leur famille, plus le transfert vers une autre famille.
         || (leads(resource.data.campusId, resource.data.familyId)
@@ -196,7 +205,7 @@ service cloud.firestore {
             && unchanged('makerId') && unchanged('familyId'))
         // Faiseur : corriger une âme qu'il vient d'enregistrer, le jour même.
         || (isMaker() && resource.data.createdBy == request.auth.uid && resource.data.makersUntil > request.time
-            && unchanged('makerId') && unchanged('familyId') && unchanged('makersUntil')));
+            && unchanged('makerId') && unchanged('familyId') && unchanged('makersUntil'))));
       allow delete: if isAdminOf(resource.data.campusId);
 
       match /notes/{noteId} {

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useSession } from "../../lib/session";
 import { saveSettings } from "../../lib/api";
-import type { Settings as S, Step } from "../../lib/types";
+import { DEFAULT_SETTINGS, type InviteCard, type Settings as S, type Step } from "../../lib/types";
+import { card, inviteImage, inviteText } from "../../lib/invite";
 import { Top, frError, useToast } from "../../components/ui";
 
 const slug = (s: string) => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "etape";
@@ -16,6 +17,11 @@ export default function Settings() {
   const setLines = (k: "absenceReasons" | "exitReasons" | "services" | "formations" | "difficulties", v: string) => setS({ ...s, [k]: v.split("\n").map(x => x.trimStart()).filter((x, i, a) => x || i === a.length - 1) });
   const setStep = (i: number, p: Partial<Step>) => setS({ ...s, steps: s.steps.map((x, j) => (j === i ? { ...x, ...p } : x)) });
   const move = (i: number, d: number) => { const st = [...s.steps]; const [x] = st.splice(i, 1); st.splice(i + d, 0, x); setS({ ...s, steps: st }); };
+
+  const c = card(s);
+  const setCard = (p: Partial<InviteCard>) => setS({ ...s, inviteCard: { ...c, ...p } });
+  const [preview, setPreview] = useState<string | null>(null);
+  useEffect(() => { let url = ""; const t = setTimeout(() => inviteImage(s, "Grâce").then(b => { url = URL.createObjectURL(b); setPreview(url); }), 300); return () => { clearTimeout(t); if (url) URL.revokeObjectURL(url); }; }, [s.inviteCard, s.churchName]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save() {
     setBusy(true);
@@ -57,6 +63,31 @@ export default function Settings() {
         <div className="field"><label htmlFor="fo">Formations suivies (une par ligne)</label><textarea id="fo" value={lines("formations")} onChange={e => setLines("formations", e.target.value)} /></div>
         <div className="field"><label htmlFor="di">Types de difficultés (un par ligne)</label><textarea id="di" value={lines("difficulties")} onChange={e => setLines("difficulties", e.target.value)} /></div>
       </div>
+      <div className="eyebrow">Messages</div>
+      <div className="card">
+        <div className="field"><label htmlFor="im">Invitation au culte (WhatsApp et SMS)</label><textarea id="im" value={s.inviteMessage ?? DEFAULT_SETTINGS.inviteMessage} onChange={e => setS({ ...s, inviteMessage: e.target.value })} />
+          <span className="hint">Mots remplacés automatiquement : {"{prenom} {jour} {heure} {lieu} {eglise} {faiseur}"}. Exemple : « {inviteText(s, "Grâce Mballa", "Paul Owona")} »</span></div>
+        <div className="field"><label htmlFor="pm">Message au pilote et à l'hôte d'une famille d'impact</label><textarea id="pm" value={s.impactMessage ?? DEFAULT_SETTINGS.impactMessage} onChange={e => setS({ ...s, impactMessage: e.target.value })} />
+          <span className="hint">Mots : {"{pilote} {ame} {telephone} {quartier} {age} {jour} {fi}"}</span></div>
+      </div>
+
+      <div className="eyebrow">Billet d'invitation, aux couleurs de l'église</div>
+      <div className="card" style={{ display: "grid", gap: 14, gridTemplateColumns: "minmax(0,1fr) 160px", alignItems: "start" }}>
+        <div>
+          <div className="field"><label htmlFor="ct">Titre</label><input id="ct" value={c.title} onChange={e => setCard({ title: e.target.value })} /></div>
+          <div className="field"><label htmlFor="cs">Sous-titre</label><input id="cs" value={c.subtitle} onChange={e => setCard({ subtitle: e.target.value })} /></div>
+          <div className="field"><label htmlFor="ch">Heures</label><input id="ch" value={c.time} onChange={e => setCard({ time: e.target.value })} /></div>
+          <div className="field"><label htmlFor="cl">Lieu</label><input id="cl" value={c.place} onChange={e => setCard({ place: e.target.value })} /></div>
+          <div className="field"><label htmlFor="cv">Verset</label><input id="cv" value={c.verse} onChange={e => setCard({ verse: e.target.value })} /></div>
+          <div className="grid2" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
+            <div className="field"><label htmlFor="c1">Couleur 1</label><input id="c1" type="color" value={c.color1} onChange={e => setCard({ color1: e.target.value })} /></div>
+            <div className="field"><label htmlFor="c2">Couleur 2</label><input id="c2" type="color" value={c.color2} onChange={e => setCard({ color2: e.target.value })} /></div>
+            <div className="field"><label htmlFor="c3">Accent</label><input id="c3" type="color" value={c.accent} onChange={e => setCard({ accent: e.target.value })} /></div>
+          </div>
+        </div>
+        {preview && <img src={preview} alt="Aperçu du billet" style={{ width: 160, borderRadius: 14, boxShadow: "var(--shadow)" }} />}
+      </div>
+
       <div className="btnrow"><button className="btn primary" disabled={busy} onClick={save}>Enregistrer les réglages</button></div>
     </div>
   );

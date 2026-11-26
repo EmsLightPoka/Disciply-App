@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { collection, deleteDoc, doc, orderBy, query } from "firebase/firestore";
+import { collection, doc, orderBy, query } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useDocument, useQuery } from "../../lib/hooks";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import type { Note, Soul } from "../../lib/types";
-import { addNote, cancelStep, establishSoul, exitSoul, reinstateSoul, reportDifficulty, resolveDifficulty, setFormation, transferSoul, updateSoul, validateStep } from "../../lib/api";
+import { addNote, cancelStep, deleteSoulLogged, establishSoul, exitSoul, logContact, markImpactNotified, reinstateSoul, reportDifficulty, resolveDifficulty, setFormation, setNoContact, transferSoul, transferSoulCampus, updateSoul, validateStep } from "../../lib/api";
+import { fill, waLink } from "../../lib/invite";
+import { DEFAULT_SETTINGS, isGlobal, type Family } from "../../lib/types";
+import { getDocs, where } from "firebase/firestore";
 import { isCampusAdmin, isLeader } from "../../lib/types";
 import AssignSheet from "../../components/AssignSheet";
 import { fullDate, lastSundays, shortDate, today } from "../../lib/dates";
@@ -18,7 +21,8 @@ import { suggestImpact } from "../../lib/impact";
 import { IMPACT_LABEL } from "../../lib/types";
 
 type Modal = null | { kind: "step"; stepId: string } | { kind: "cancel"; stepId: string } | { kind: "note" } | { kind: "edit" }
-  | { kind: "more" } | { kind: "assign" } | { kind: "transfer" } | { kind: "exit" } | { kind: "delete" } | { kind: "difficulty" } | { kind: "formation"; name: string };
+  | { kind: "more" } | { kind: "assign" } | { kind: "transfer" } | { kind: "exit" } | { kind: "delete" } | { kind: "difficulty" } | { kind: "formation"; name: string }
+  | { kind: "contact"; answered: boolean } | { kind: "nocontact" } | { kind: "campus" };
 
 export default function SoulDetail() {
   const { id = "" } = useParams();
@@ -69,13 +73,34 @@ export default function SoulDetail() {
           {s.state === "exited" && <span className="chip bad">Sortie du suivi</span>}
           {s.state === "established" && <span className="chip ok">Disciple affermi</span>}
           {abs >= settings.absenceThreshold && <span className="chip warn">{abs} absences de suite</span>}
+          {s.becameMaker && <span className="chip ok">Devenue faiseur de disciples</span>}
         </div>
         <div className="small">Famille {familyName(s.familyId)} · {s.makerId ? `suivie par ${workerName(s.makerId)}` : "pas encore attribuée"}</div>
       </div>
 
-      {s.phone && <div className="actions2">
+      {s.noContact && <div className="error" style={{ marginBottom: 12 }}><b>Ne souhaite plus être contactée</b> depuis le {shortDate(s.noContact.at)}{s.noContact.byName ? ` (noté par ${s.noContact.byName})` : ""}{s.noContact.reason ? ` · ${s.noContact.reason}` : ""}. Sa volonté passe avant tout : pas d'appel, pas de message, pas d'invitation.
+        {manager && <div className="btnrow"><button className="btn ghost sm" disabled={busy} onClick={() => run(() => setNoContact(me, s.id, false), "Elle peut de nouveau être contactée")}>Elle accepte à nouveau d'être contactée</button></div>}</div>}
+
+      {s.phone && !s.noContact && <div className="actions2">
         <a className="call" href={telHref(s.phone)}><IPhone />Appeler</a>
         <a className="wa" href={waHref(s.phone)} target="_blank" rel="noreferrer"><IChat />WhatsApp</a>
+      </div>}
+
+      {!s.noContact && s.state === "active" && <>
+        <div className="eyebrow">Suivi des appels et messages</div>
+        <div className="card">
+          <p style={{ margin: "0 0 10px" }}>{s.lastContact ? <>Dernier contact le {new Date(s.lastContact.at).toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })} : <b>{s.lastContact.answered ? "a répondu" : "pas encore répondu"}</b>{s.lastContact.text ? ` · ${s.lastContact.text}` : ""}</> : "Après un appel ou un message WhatsApp, note si l'âme a répondu. C'est repris dans ton rapport."}</p>
+          <div className="btnrow" style={{ marginTop: 0 }}>
+            <button className="btn primary sm" onClick={() => setModal({ kind: "contact", answered: true })}>A répondu</button>
+            <button className="btn ghost sm" onClick={() => setModal({ kind: "contact", answered: false })}>Pas encore répondu</button>
+          </div>
+        </div>
+      </>}
+
+      {k === total && s.state !== "exited" && !s.becameMaker && manager && <div className="hero" style={{ margin: "16px 0" }}>
+        <span className="big">Toutes les étapes sont validées</span>
+        <span className="small">{s.name.split(" ")[0]} peut devenir faiseur de disciples.</span>
+        <Link className="btn grad" style={{ alignSelf: "flex-start" }} to={`/equipe?inviter=1&ame=${s.id}`}>Passer à l'étape faiseur de disciples</Link>
       </div>}
 
       <div className="eyebrow">Croissance · {k} sur {total}</div>
@@ -170,12 +195,14 @@ export default function SoulDetail() {
           <div className="opts">
             {s.state === "active" && manager && <button onClick={() => setModal({ kind: "assign" })}>{s.makerId ? "Changer de faiseur" : "Attribuer à un faiseur"}</button>}
             {s.state === "active" && manager && <button onClick={() => setModal({ kind: "transfer" })}>Transférer vers une autre famille</button>}
+            {isGlobal(me.role) && <button onClick={() => setModal({ kind: "campus" })}>Transférer vers un autre campus</button>}
+            {!s.noContact && <button onClick={() => setModal({ kind: "nocontact" })}>Ne souhaite plus être contactée</button>}
             {s.state === "active" && <button disabled={busy} onClick={() => run(() => establishSoul(uid, s.id), "Bravo ! Disciple affermi")}>Marquer comme disciple affermi{k < total && <span className="small">{k}/{total} étapes</span>}</button>}
             {s.state === "active" && <button onClick={() => setModal({ kind: "exit" })}>Sortir du suivi (archiver)</button>}
             {s.state !== "active" && manager && <button disabled={busy} onClick={() => run(() => reinstateSoul(uid, s.id), "Âme réintégrée : elle est dans À attribuer")}>Réintégrer dans le suivi</button>}
             {isCampusAdmin(me.role) && <button style={{ color: "var(--bad)" }} onClick={() => setModal({ kind: "delete" })}>Supprimer définitivement</button>}
           </div>
-          {!isCampusAdmin(me.role) && <p className="small" style={{ marginTop: 12 }}>Une âme n'est jamais supprimée : elle est archivée et peut être réintégrée.</p>}
+          <p className="small" style={{ marginTop: 12 }}>Tout est daté et signé dans l'historique. {isCampusAdmin(me.role) ? "Une suppression laisse une trace dans le journal du campus." : "Une âme n'est jamais supprimée : elle est archivée et peut être réintégrée."}</p>
         </Sheet>)}
       {modal?.kind === "assign" && <AssignSheet soul={s} onClose={close} />}
       {modal?.kind === "difficulty" && (
@@ -195,7 +222,7 @@ export default function SoulDetail() {
         </Sheet>)}
       {modal?.kind === "transfer" && (
         <Sheet title="Transférer vers une famille" onClose={close}>
-          <p className="small" style={{ marginTop: 0 }}>L'âme quitte la famille {familyName(s.familyId)}. Le berger de la famille d'accueil choisira son faiseur.</p>
+          <p className="small" style={{ marginTop: 0 }}>L'âme quitte la famille {familyName(s.familyId)} avec tout son historique. Le berger de la famille d'accueil choisira son faiseur.</p>
           <div className="opts">{families.filter(f => f.id !== s.familyId).map(f => (
             <button key={f.id} disabled={busy} onClick={() => run(async () => { await transferSoul(uid, s.id, f.id, f.name); if (!isCampusAdmin(me.role)) nav(-1); }, `Transférée vers ${f.name}`)}>{f.name}</button>))}</div>
         </Sheet>)}
@@ -205,11 +232,23 @@ export default function SoulDetail() {
         </Sheet>)}
       {modal?.kind === "delete" && (
         <Sheet title="Supprimer définitivement ?" onClose={close}>
-          <p>La fiche de {s.name} et tout son historique seront perdus. Préfère l'archivage en cas de doute.</p>
+          <p>La fiche de {s.name} et tout son historique seront perdus. La suppression reste notée dans le journal du campus (qui, quand). Préfère l'archivage en cas de doute.</p>
           <div className="field"><label htmlFor="cf">Tape SUPPRIMER pour confirmer</label><input id="cf" value={text} onChange={e => setText(e.target.value)} /></div>
           <div className="btnrow"><button className="btn ghost" onClick={close}>Annuler</button>
-            <button className="btn danger" disabled={busy || text !== "SUPPRIMER"} onClick={() => run(async () => { await deleteDoc(doc(db, "souls", s.id)); nav("/ames", { replace: true }); }, "Fiche supprimée")}>Supprimer</button></div>
+            <button className="btn danger" disabled={busy || text !== "SUPPRIMER"} onClick={() => run(async () => { await deleteSoulLogged(me, s); nav("/ames", { replace: true }); }, "Fiche supprimée")}>Supprimer</button></div>
         </Sheet>)}
+      {modal?.kind === "contact" && (
+        <Sheet title={modal.answered ? "L'âme a répondu" : "Pas encore de réponse"} onClose={close}>
+          <div className="field"><label htmlFor="ct">Ce qui s'est dit (facultatif)</label><textarea id="ct" value={text} onChange={e => setText(e.target.value)} placeholder={modal.answered ? "Ex. Elle viendra dimanche avec sa sœur." : "Ex. Appelée deux fois, message WhatsApp envoyé."} /></div>
+          <button className="btn primary block" disabled={busy} onClick={() => run(() => logContact(me, s.id, modal.answered, text.trim()), "Suivi enregistré : il apparaîtra dans ton rapport")}>Enregistrer</button>
+        </Sheet>)}
+      {modal?.kind === "nocontact" && (
+        <Sheet title="Ne souhaite plus être contactée" onClose={close}>
+          <p className="small" style={{ marginTop: 0 }}>Sa volonté passe avant tout. Les boutons d'appel, de message et d'invitation disparaissent pour elle. C'est daté et signé à ton nom.</p>
+          <div className="field"><label htmlFor="nc">Précision (facultatif)</label><input id="nc" value={text} onChange={e => setText(e.target.value)} placeholder="Ex. Demandé par téléphone le 12/11" /></div>
+          <button className="btn danger block" disabled={busy} onClick={() => run(() => setNoContact(me, s.id, true, text.trim()), "C'est noté : elle ne sera plus contactée")}>Confirmer</button>
+        </Sheet>)}
+      {modal?.kind === "campus" && <CampusTransfer s={s} onClose={close} />}
       {me.role === "maker" && s.makerId !== uid && <p className="small"><Link to="/ames">Retour à mes âmes</Link></p>}
     </div>
   );
@@ -217,7 +256,7 @@ export default function SoulDetail() {
 
 /** Famille d'impact de l'âme : la plus proche de son quartier, avec les contacts du pilote et de l'hôte. */
 function ImpactCard({ s }: { s: Soul }) {
-  const { profile } = useSession();
+  const { profile, settings } = useSession();
   const { impact } = useScope();
   const toast = useToast();
   const [open, setOpen] = useState(false);
@@ -226,6 +265,9 @@ function ImpactCard({ s }: { s: Soul }) {
   const best = sugg[0]?.near ? sugg[0].f : null;
   const choose = (id: string | null) => updateSoul(profile!.id, s.id, { impactFamilyId: id }).then(() => { toast(id ? "Famille d'impact attribuée" : "Famille d'impact retirée"); setOpen(false); }).catch(e => toast(frError(e)));
   if (!impact.length && !fi) return null;
+  const fiMsg = (who: string) => fill(settings.impactMessage ?? DEFAULT_SETTINGS.impactMessage!, {
+    pilote: who.split(" ")[0] || "", ame: s.name, telephone: s.phone || "non renseigné", quartier: s.neighborhood || "non renseigné",
+    age: s.age != null ? `${s.age} ans` : "âge non renseigné", jour: fi?.kind === "FIJ" ? "mardi" : "jeudi", fi: fi?.name ?? "" });
   return <>
     <div className="eyebrow">Famille d'impact</div>
     {fi ? <div className="card">
@@ -237,6 +279,11 @@ function ImpactCard({ s }: { s: Soul }) {
           {p && <a className="iconbtn call" href={telHref(p)} aria-label={`Appeler ${l.toLowerCase()}`}><IPhone /></a>}
           {p && <a className="iconbtn" href={waHref(p)} target="_blank" rel="noreferrer" aria-label={`WhatsApp ${l.toLowerCase()}`}><IChat /></a>}
         </div>))}
+      {!s.noContact && <div className="btnrow">
+        {[["pilote", fi.pilotName, fi.pilotPhone], ["hôte", fi.hostName, fi.hostPhone]].filter(x => x[2]).map(([l, n, p]) => (
+          <a key={l} className="btn primary sm" href={waLink(p, fiMsg(n))} target="_blank" rel="noreferrer" onClick={() => markImpactNotified(profile!.id, s.id, fi.name).catch(() => {})}><IChat />Prévenir {l === "pilote" ? "le pilote" : "l'hôte"}</a>))}
+      </div>}
+      <p className="small" style={{ margin: "6px 0 0" }}>{s.impactNotifiedAt ? `Pilote et hôte prévenus le ${shortDate(s.impactNotifiedAt)}.` : `Préviens le pilote et l'hôte pour qu'ils appellent ${s.name.split(" ")[0]} avant ${fi.kind === "FIJ" ? "mardi" : "jeudi"}.`}</p>
       <div className="btnrow"><button className="btn ghost sm" onClick={() => setOpen(true)}>Changer</button></div>
     </div> : <div className="card">
       <p style={{ margin: "0 0 10px" }}>{best ? <>La plus proche de {s.neighborhood} : <b>{best.name}</b> ({IMPACT_LABEL[best.kind]}).</> : s.neighborhood ? `Aucune famille d'impact ne couvre encore le quartier ${s.neighborhood}.` : "Indique le quartier de l'âme pour trouver la famille d'impact la plus proche."}</p>
@@ -252,4 +299,35 @@ function ImpactCard({ s }: { s: Soul }) {
       {s.impactFamilyId && <div className="btnrow"><button className="btn ghost" onClick={() => choose(null)}>Retirer la famille d'impact</button></div>}
     </Sheet>}
   </>;
+}
+
+
+/** Super admin ou pasteur principal : transfert vers un autre campus, avec tout l'historique (fiche, notes, présences). */
+function CampusTransfer({ s, onClose }: { s: Soul; onClose: () => void }) {
+  const { campuses, profile } = useSession();
+  const toast = useToast();
+  const nav = useNavigate();
+  const [camp, setCamp] = useState("");
+  const [fams, setFams] = useState<Family[]>([]);
+  const [busy, setBusy] = useState(false);
+  async function pickCampus(id: string) {
+    setCamp(id);
+    const q = await getDocs(query(collection(db, "families"), where("campusId", "==", id)));
+    setFams(q.docs.map(d => ({ id: d.id, ...d.data() }) as Family).sort((a, b) => a.name.localeCompare(b.name, "fr")));
+  }
+  const c = campuses.find(x => x.id === camp);
+  return (
+    <Sheet title="Transférer vers un autre campus" onClose={onClose}>
+      <p className="small" style={{ marginTop: 0 }}>La fiche part avec tout son historique : étapes, formations, notes et présences. Le berger d'accueil choisira son faiseur.</p>
+      {!camp ? <div className="opts">{campuses.filter(x => x.id !== s.campusId).map(x => <button key={x.id} onClick={() => pickCampus(x.id)}>{x.name}</button>)}</div> : <>
+        <p><b>{c?.name}</b> : choisis la famille d'accueil.</p>
+        <div className="opts">{fams.map(f => <button key={f.id} disabled={busy} onClick={async () => {
+          setBusy(true);
+          try { await transferSoulCampus(profile!.id, s, camp, c?.name ?? "", f.id, f.name); toast(`Transférée vers ${c?.name}, famille ${f.name}`); onClose(); nav("/ames", { replace: true }); }
+          catch (e) { toast(frError(e)); } finally { setBusy(false); }
+        }}>{f.name}</button>)}
+          {fams.length === 0 && <p className="small">Ce campus n'a pas encore de famille.</p>}
+          <button onClick={() => setCamp("")}>← Autre campus</button></div>
+      </>}
+    </Sheet>);
 }

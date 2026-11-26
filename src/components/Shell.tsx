@@ -15,11 +15,13 @@ const leaderNav: Item[] = [
   ["/ames", "Âmes", <IUsers />, false],
   ["/rapports", "Rapports", <IReport />, true],
   ["/equipe", "Équipe", <IWorker />, false],
+  ["/invitations", "Invitations au culte", <IBell />, false],
   ["/programme", "Programme", <ISchedule />, false],
   ["/archives", "Archives", <IArchive />, false]
 ];
 const adminNav: Item[] = [
   ["/eglise", "Campus", <IChurch />, true],
+  ["/vue-ensemble", "Vue d'ensemble", <IChart />, false],
   ["/programme", "Programme", <ISchedule />, true],
   ["/familles", "Familles", <IChart />, false],
   ["/familles-impact", "Familles d'impact", <IHome />, false],
@@ -39,7 +41,8 @@ const NAV: Record<Role, Item[]> = {
     ["/aujourdhui", "Aujourd'hui", <IHome />, true],
     ["/ames", "Mes âmes", <IUsers />, true],
     ["/dimanche", "Dimanche", <ICal />, true],
-    ["/rapports", "Rapport", <IReport />, true]
+    ["/rapports", "Rapport", <IReport />, true],
+    ["/invitations", "Invitations au culte", <IBell />, false]
   ],
   shepherd: leaderNav,
   assistant: leaderNav.filter(i => i[0] !== "/equipe"),

@@ -30,6 +30,8 @@ import Campuses from "./pages/admin/Campuses";
 import Archives from "./pages/common/Archives";
 import FamilyDetail from "./pages/admin/FamilyDetail";
 import ImpactFamilies from "./pages/admin/ImpactFamilies";
+import Invitations from "./pages/common/Invitations";
+import Overview from "./pages/admin/Overview";
 
 const HOME: Record<Role, string> = { maker: "/aujourdhui", shepherd: "/famille", assistant: "/famille", admin: "/eglise", master: "/campus", pastor: "/campus" };
 
@@ -75,6 +77,7 @@ export default function App() {
           <Route path="/notifications" element={<Notifications />} />
           <Route path="/profil" element={<Profile />} />
           <Route path="/plus" element={<More />} />
+          <Route path="/invitations" element={<Invitations />} />
           {role === "maker" && <Route path="/aujourdhui" element={<Today />} />}
           {(leader || admin) && <Route path="/a-attribuer" element={<ToAssign />} />}
           {(leader || admin) && <Route path="/programme" element={<Schedule />} />}
@@ -86,6 +89,7 @@ export default function App() {
           {admin && <Route path="/familles" element={<Families />} />}
           {admin && <Route path="/familles/:id" element={<FamilyDetail />} />}
           {admin && <Route path="/familles-impact" element={<ImpactFamilies />} />}
+          {admin && <Route path="/vue-ensemble" element={<Overview />} />}
           {admin && <Route path="/reglages" element={<Settings />} />}
           {(role === "master" || role === "pastor") && <Route path="/campus" element={<Campuses />} />}
           <Route path="*" element={<Navigate to={home} replace />} />

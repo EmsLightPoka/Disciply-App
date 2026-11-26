@@ -1,5 +1,5 @@
 import {
-  addDoc, arrayUnion, collection, deleteDoc, deleteField, doc, serverTimestamp, setDoc, Timestamp, updateDoc, writeBatch
+  addDoc, arrayUnion, collection, deleteDoc, deleteField, doc, getDocs, query, serverTimestamp, setDoc, Timestamp, updateDoc, where, writeBatch
 } from "firebase/firestore";
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { auth, db } from "./firebase";
@@ -144,6 +144,41 @@ export const establishSoul = (uid: string, soulId: string) =>
   updateDoc(doc(db, "souls", soulId), { state: "established", exitDate: today(), history: hist(uid, "Disciple affermi"), ...stamp(uid) });
 export const reinstateSoul = (uid: string, soulId: string) =>
   updateDoc(doc(db, "souls", soulId), { state: "active", makerId: null, exitReason: deleteField(), exitDate: deleteField(), history: hist(uid, "Réintégrée dans le suivi"), ...stamp(uid) });
+
+/** Suivi d'un appel ou d'un message : l'âme a répondu ou pas encore, avec un petit texte (repris dans le rapport du faiseur). */
+export async function logContact(me: UserProfile, soulId: string, answered: boolean, text: string) {
+  await updateDoc(doc(db, "souls", soulId), {
+    lastContact: { at: new Date().toISOString(), answered, text, by: me.id, byName: me.name },
+    history: hist(me.id, answered ? `A répondu${text ? " : " + text : ""}` : `Pas encore de réponse${text ? " : " + text : ""}`), ...stamp(me.id)
+  });
+  await addNote(soulId, me.id, me.name, `${answered ? "A répondu" : "Pas encore répondu"}${text ? " · " + text : ""}`, "call");
+}
+/** L'âme ne veut plus être contactée : c'est noté, daté et signé ; on peut le lever si elle le redemande. */
+export const setNoContact = (me: UserProfile, soulId: string, on: boolean, reason = "") =>
+  updateDoc(doc(db, "souls", soulId), {
+    noContact: on ? { at: today(), by: me.id, byName: me.name, reason } : null,
+    history: hist(me.id, on ? `Ne souhaite plus être contactée${reason ? " : " + reason : ""}` : "Accepte à nouveau d'être contactée"), ...stamp(me.id)
+  });
+export const markInvited = (uid: string, soulId: string) => updateDoc(doc(db, "souls", soulId), { lastInvite: today(), ...stamp(uid) });
+export const markImpactNotified = (uid: string, soulId: string, fi: string) =>
+  updateDoc(doc(db, "souls", soulId), { impactNotifiedAt: today(), history: hist(uid, `Pilote et hôte de ${fi} prévenus`), ...stamp(uid) });
+
+/** Transfert vers un autre campus (super admin, pasteur principal) : fiche, notes et présences suivent, l'historique est gardé. */
+export async function transferSoulCampus(uid: string, soul: Soul, campusId: string, campusName: string, familyId: string, familyName: string) {
+  const att = await getDocs(query(collection(db, "attendances"), where("soulId", "==", soul.id)));
+  const b = writeBatch(db);
+  b.update(doc(db, "souls", soul.id), { campusId, familyId, makerId: null, impactFamilyId: null, history: hist(uid, `Transférée vers le campus ${campusName}, famille ${familyName}`), ...stamp(uid) });
+  att.docs.forEach(d => b.update(d.ref, { campusId, familyId, makerId: null }));
+  await b.commit();
+}
+/** Une âme supprimée laisse une trace : rien ne s'efface en silence. */
+export async function deleteSoulLogged(me: UserProfile, soul: Soul) {
+  await addDoc(collection(db, "audit"), { campusId: soul.campusId, kind: "soul-deleted", soulId: soul.id, soulName: soul.name, by: me.id, byName: me.name, at: serverTimestamp() });
+  await deleteDoc(doc(db, "souls", soul.id));
+}
+/** Une âme devenue faiseur de disciples. */
+export const soulBecameMaker = (uid: string, soulId: string) =>
+  updateDoc(doc(db, "souls", soulId), { state: "established", becameMaker: true, exitDate: today(), history: hist(uid, "Devenue faiseur de disciples"), ...stamp(uid) });
 
 export const addNote = (soulId: string, authorId: string, authorName: string, text: string, kind: "note" | "difficulty" | "formation" | "call" = "note") =>
   addDoc(collection(db, "souls", soulId, "notes"), { text, kind, authorId, authorName, createdAt: serverTimestamp() });

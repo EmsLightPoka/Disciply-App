@@ -5,11 +5,11 @@ import { useDocument, useQuery } from "../../lib/hooks";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
 import { familyReportId, makerReportId, markAttendance, refreshFamilyReport, sendFamilyReport, submitMakerReport } from "../../lib/api";
-import { buildFamilyReport, countWeek } from "../../lib/report";
+import { buildFamilyReport, contactsOf, countWeek } from "../../lib/report";
+import Dashboard, { ReportShare } from "../../components/Dashboard";
 import { addDays, currentSunday, fullDate, lastSundays, today } from "../../lib/dates";
 import { isCampusAdmin, isLeader, type FamilyReport, type MakerReport, type UserProfile } from "../../lib/types";
-import { Avatar, Top, copyText, frError, shareText, useToast } from "../../components/ui";
-import { IAlert, ICal, ICheck, IReport, IShare, IUsers } from "../../components/Icons";
+import { Avatar, Top, copyText, frError, useToast } from "../../components/ui";
 
 /** Rapport de la semaine : le faiseur l'envoie le lundi, le berger compile, le pasteur reçoit. */
 export default function Reports() {
@@ -48,6 +48,7 @@ function MakerView({ week }: { week: string }) {
     };
   }, [active, attendance, pending, week]);
   const waiting = active.filter(s => pending.get(s.id)?.has(week));
+  const ct = contactsOf(active, week);
   const base = { campusId: campusId!, familyId: me.familyId!, makerId: me.id, makerName: me.name, week };
 
   // Complément : dès qu'un « E » est confirmé, le rapport déjà envoyé se met à jour tout seul.
@@ -74,12 +75,7 @@ function MakerView({ week }: { week: string }) {
 
   return <>
     {sent.data && <div className="success">Rapport envoyé{sent.data.submittedAt ? ` le ${sent.data.submittedAt.toDate().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}` : ""}{sent.data.complementAt ? `, complété le ${sent.data.complementAt.toDate().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}` : ""}. Il se met à jour tout seul quand tu confirmes une présence.</div>}
-    <div className="grid2 grid4">
-      <div className="stat"><div className="ic"><ICheck /></div><div className="v">{r.present}</div><div className="l">présentes (P)</div></div>
-      <div className="stat"><div className="ic bad"><IAlert /></div><div className="v">{r.absent}</div><div className="l">absentes (A)</div></div>
-      <div className="stat"><div className="ic"><ICal /></div><div className="v">{r.pending}</div><div className="l">en attente (E)</div></div>
-      <div className="stat"><div className="ic"><IUsers /></div><div className="v">{r.souls}</div><div className="l">âmes suivies{r.notPointed ? ` · ${r.notPointed} non pointées` : ""}</div></div>
-    </div>
+    <Dashboard d={{ ...r, withFi: active.filter(s => s.impactFamilyId).length, answered: ct.answered.length, contacted: ct.answered.length + ct.waiting.length }} />
 
     <div className="eyebrow">Complément du jeudi{isThursday ? " · c'est aujourd'hui" : ""}</div>
     {waiting.length ? <div className="list">{waiting.map(s => (
@@ -89,6 +85,9 @@ function MakerView({ week }: { week: string }) {
       </div>))}</div>
       : <div className="empty" style={{ padding: 14 }}>Aucune âme en attente pour ce dimanche.</div>}
     <p className="small">Le dimanche et le lundi, pointe P, A ou E (en attente). Le jeudi, confirme les « E » ici : ton rapport, celui du berger et celui du pasteur se mettent à jour tout seuls.</p>
+
+    <div className="eyebrow">Suivi des appels de la semaine</div>
+    <div className="list">{ct.answered.length + ct.waiting.length ? [...ct.answered, ...ct.waiting].map(s => <div className="note" key={s.id}><b style={{ fontWeight: 500 }}>{s.name}</b> · {s.lastContact!.answered ? "a répondu" : "pas encore répondu"}{s.lastContact!.text ? ` · ${s.lastContact!.text}` : ""}</div>) : <div className="empty" style={{ padding: 14 }}>Note sur la fiche de chaque âme si elle a répondu à ton appel ou ton message.</div>}</div>
 
     <div className="eyebrow">Difficultés signalées</div>
     <div className="list">{r.difficulties.length ? r.difficulties.map(d => <div className="note" key={d.soulName}><b style={{ fontWeight: 500 }}>{d.soulName}</b> · {d.text}</div>) : <div className="empty" style={{ padding: 14 }}>Aucune. Signale une difficulté depuis la fiche de l'âme.</div>}</div>
@@ -134,6 +133,7 @@ function LeaderView({ week }: { week: string }) {
 
   return <>
     {sent.data && <div className="success">Compilation envoyée par {sent.data.sentByName}. Elle se met à jour toute seule avec les compléments du jeudi.</div>}
+    <Dashboard d={totals} />
     <div className="eyebrow">Rapports des faiseurs · {reports.data.length} sur {makers.length}</div>
     <div className="list">{makers.map(m => { const r = got.get(m.id); const c = countWeek(active.filter(s => s.makerId === m.id), week, attendance, pending); return (
       <div className="note" key={m.id}>
@@ -146,8 +146,10 @@ function LeaderView({ week }: { week: string }) {
     <div className="card pre">{text}</div>
     <div className="btnrow">
       <button className="btn ghost" onClick={async () => toast((await copyText(text)) ? "Texte copié" : "Copie impossible")}>Copier</button>
-      <button className="btn primary" disabled={busy} onClick={send}>{sent.data ? "Renvoyer" : "Envoyer"}</button>
+      <button className="btn primary" disabled={busy} onClick={send}>{sent.data ? "Renvoyer dans l'app" : "Envoyer dans l'app"}</button>
     </div>
+    <p className="small">Pour ceux qui ne sont pas sur l'app : envoie aussi le rapport au pasteur principal ou dans le groupe WhatsApp de la famille.</p>
+    <ReportShare title={`Rapport famille ${myFamily?.name ?? ""}, semaine du ${fullDate(week)}`} text={text} toast={toast} />
   </>;
 }
 
@@ -169,17 +171,14 @@ function PastorView({ week }: { week: string }) {
   });
   const sentList = live.filter(x => x.fr);
   const missing = live.filter(x => !x.fr).map(x => x.f.name);
-  const total = live.reduce((a, x) => ({ souls: a.souls + x.totals.souls, present: a.present + x.totals.present, pending: a.pending + x.totals.pending, newSouls: a.newSouls + x.totals.newSouls }), { souls: 0, present: 0, pending: 0, newSouls: 0 });
+  const total = live.reduce((a, x) => ({ souls: a.souls + x.totals.souls, present: a.present + x.totals.present, absent: a.absent + x.totals.absent, pending: a.pending + x.totals.pending, notPointed: a.notPointed + x.totals.notPointed, newSouls: a.newSouls + x.totals.newSouls, withFi: a.withFi + x.totals.withFi, answered: a.answered + x.totals.answered, contacted: a.contacted + x.totals.contacted, reports: a.reports + x.totals.reports, makers: a.makers + x.totals.makers }),
+    { souls: 0, present: 0, absent: 0, pending: 0, notPointed: 0, newSouls: 0, withFi: 0, answered: 0, contacted: 0, reports: 0, makers: 0 });
   const all = sentList.map(x => x.text).join("\n\n────────\n\n");
   void toast; void today;
 
   return <>
-    <div className="grid2 grid4">
-      <div className="stat"><div className="ic"><IReport /></div><div className="v">{sentList.length}/{families.length}</div><div className="l">familles ont envoyé</div></div>
-      <div className="stat"><div className="ic"><IUsers /></div><div className="v">{total.souls}</div><div className="l">âmes suivies</div></div>
-      <div className="stat"><div className="ic"><ICheck /></div><div className="v">{total.present}</div><div className="l">présentes dimanche</div></div>
-      <div className="stat"><div className="ic"><ICal /></div><div className="v">{total.pending}</div><div className="l">en attente (E)</div></div>
-    </div>
+    <p className="small" style={{ margin: "0 2px 8px" }}><b>{sentList.length} sur {families.length}</b> familles ont envoyé leur rapport.</p>
+    <Dashboard d={total} />
     <div className="eyebrow">Rapports des familles · mis à jour en direct</div>
     <div className="list">{live.map(x => (
       <div key={x.f.id}>
@@ -187,10 +186,10 @@ function PastorView({ week }: { week: string }) {
           <span className="main-col"><div className="name">Famille {x.f.name}</div><div className="meta">{x.fr ? `Envoyé par ${x.fr.sentByName}` : "Pas encore envoyé par le berger"} · {x.totals.souls} âmes · {x.totals.present} P · {x.totals.absent} A · {x.totals.pending} E · {x.totals.reports}/{x.totals.makers} rapports</div></span>
           <span className="small">{openId === x.f.id ? "Fermer" : "Lire"}</span>
         </button>
-        {openId === x.f.id && <div className="note pre">{x.text}</div>}
+        {openId === x.f.id && <><div className="note pre">{x.text}</div><ReportShare title={`Rapport famille ${x.f.name}, semaine du ${fullDate(week)}`} text={x.text} toast={toast} /></>}
       </div>))}
       {live.length === 0 && <div className="empty">Aucune famille.</div>}</div>
     {missing.length > 0 && <p className="small">Pas encore envoyé : {missing.join(", ")}.</p>}
-    {sentList.length > 0 && <div className="btnrow"><button className="btn primary" onClick={() => shareText(all, toast)}><IShare />Partager tous les rapports</button></div>}
+    {sentList.length > 0 && <><div className="eyebrow">Tous les rapports de la semaine</div><ReportShare title={`Rapports des familles, semaine du ${fullDate(week)}`} text={all} toast={toast} /></>}
   </>;
 }

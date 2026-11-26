@@ -5,16 +5,18 @@ import { db } from "../../lib/firebase";
 import { useQuery } from "../../lib/hooks";
 import { useSession } from "../../lib/session";
 import { useScope } from "../../lib/scope";
-import { createAccountNow, createInvitation, inviteLink, updateUser } from "../../lib/api";
-import { ROLE_LABEL, isCampusAdmin, type Invitation, type Role, type UserProfile } from "../../lib/types";
+import { createAccountNow, createInvitation, inviteLink, soulBecameMaker, updateUser } from "../../lib/api";
+import { ROLE_LABEL, isCampusAdmin, type Invitation, type Role, type Soul, type UserProfile } from "../../lib/types";
 import { Avatar, Sheet, Top, copyText, frError, shareText, useToast } from "../../components/ui";
 import { IPlus } from "../../components/Icons";
 
 export default function Team() {
+  const [params0] = useSearchParams();
   const { profile, families, familyName, settings, campusId, campus, isFirst } = useSession();
-  const { workers, active, attendance } = useScope();
+  const { workers, active, souls, attendance } = useScope();
   const toast = useToast();
   const me = profile!;
+  const fromSoul = souls.find(s => s.id === params0.get("ame"));
   const isAdmin = isCampusAdmin(me.role);
   const isShepherd = me.role === "shepherd";
   const canInvite = isAdmin || isShepherd;
@@ -68,7 +70,7 @@ export default function Team() {
           </button>);
       })}{list.length === 0 && <div className="empty">Personne pour l'instant. Invite un ouvrier.</div>}</div>
 
-      {showInvite && <InviteSheet initialRole={params.get("role") === "pastor" && me.role === "master" ? "pastor" : params.get("role") === "master" && isFirst ? "master" : undefined} onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
+      {showInvite && <InviteSheet fromSoul={fromSoul} initialRole={params.get("role") === "pastor" && me.role === "master" ? "pastor" : params.get("role") === "master" && isFirst ? "master" : undefined} onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
       {created && (
         created.email ? <Sheet title="Compte créé" onClose={() => setCreated(null)}>
           <p className="small" style={{ marginTop: 0 }}>Le compte de {created.name} est prêt. Donne-lui son adresse e-mail et le mot de passe que tu as choisi : il peut se connecter tout de suite.</p>
@@ -87,22 +89,22 @@ export default function Team() {
   );
 }
 
-function InviteSheet({ onClose, onCreated, initialRole }: { initialRole?: Role; onClose: () => void; onCreated: (i: { id: string; name: string; email?: string }) => void }) {
+function InviteSheet({ onClose, onCreated, initialRole, fromSoul }: { fromSoul?: Soul; initialRole?: Role; onClose: () => void; onCreated: (i: { id: string; name: string; email?: string }) => void }) {
   const { profile, families, campusId, campus, isFirst, superIds } = useSession();
   const toast = useToast();
   const me = profile!;
   const isAdmin = isCampusAdmin(me.role);
   const roles: Role[] = me.role === "master" ? ["maker", "assistant", "shepherd", "admin", "pastor", ...(isFirst ? ["master" as Role] : [])] : isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
-  const [name, setName] = useState("");
+  const [name, setName] = useState(fromSoul?.name ?? "");
   const [email, setEmail] = useState("");
-  const [gender, setGender] = useState<"F" | "H" | "">("");
+  const [gender, setGender] = useState<"F" | "H" | "">(fromSoul?.gender ?? "");
   const [role, setRole] = useState<Role>(initialRole ?? "maker");
-  const [famChoice, setFamilyId] = useState("");
+  const [famChoice, setFamilyId] = useState(fromSoul?.familyId ?? "");
   const familyId = famChoice || me.familyId || families[0]?.id || "";
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"lien" | "compte">(initialRole ? "compte" : "lien");
   const [pw, setPw] = useState("");
-  const [phone, setPhone] = useState("");
+  const [phone, setPhone] = useState(fromSoul?.phone ?? "");
   const noFamily = role === "admin" || role === "pastor" || role === "master";
 
   async function submit(e: FormEvent) {
@@ -122,12 +124,14 @@ function InviteSheet({ onClose, onCreated, initialRole }: { initialRole?: Role; 
         const em = email.trim().toLowerCase();
         const uid = await createAccountNow({ id, name: name.trim(), email: em, role, gender, campusId, familyId: fid, createdBy: me.id, createdByName: me.name, usedBy: null }, phone.trim(), pw);
         if (role === "master" && uid) await setDoc(doc(db, "meta", "superAdmins"), { ids: [...new Set([...superIds, uid])] });
+        if (fromSoul) await soulBecameMaker(me.id, fromSoul.id);
         onCreated({ id, name: name.trim(), email: em });
-      } else onCreated({ id, name: name.trim() });
+      } else { if (fromSoul) await soulBecameMaker(me.id, fromSoul.id); onCreated({ id, name: name.trim() }); }
     } catch (x) { toast(frError(x)); } finally { setBusy(false); }
   }
   return (
-    <Sheet title="Ajouter un ouvrier" onClose={onClose}>
+    <Sheet title={fromSoul ? `${fromSoul.name.split(" ")[0]} devient faiseur de disciples` : "Ajouter un ouvrier"} onClose={onClose}>
+      {fromSoul && <p className="small" style={{ marginTop: 0 }}>{fromSoul.name} a validé toutes les étapes de croissance. Crée son compte de faiseur : sa fiche d'âme sera marquée « Devenue faiseur de disciples » et gardée avec tout son historique.</p>}
       <form onSubmit={submit}>
         <div className="field"><div className="toggle">
           <button type="button" aria-pressed={mode === "lien"} onClick={() => setMode("lien")}>Envoyer un lien</button>

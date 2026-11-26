@@ -58,7 +58,14 @@ export interface Settings {
   services: string[];
   formations: string[];
   difficulties: string[];
+  /** Message d'invitation au culte. Mots remplacés : {prenom} {jour} {heure} {lieu} {eglise} {faiseur}. */
+  inviteMessage?: string;
+  /** Billet d'invitation (image) aux couleurs de l'église. */
+  inviteCard?: InviteCard;
+  /** Message au pilote et à l'hôte d'une famille d'impact. Mots : {pilote} {ame} {telephone} {quartier} {age} {jour} {fi}. */
+  impactMessage?: string;
 }
+export interface InviteCard { title: string; subtitle: string; time: string; place: string; verse: string; color1: string; color2: string; accent: string; }
 
 /** Une famille qui sert à un culte donné. Les fenêtres d'enregistrement sont calculées à la saisie du programme. */
 export interface ServiceSlot {
@@ -163,6 +170,16 @@ export interface Soul {
   young?: boolean;
   age?: number | null;
   impactFamilyId?: string | null;
+  /** Pilote et hôte de la FI prévenus (date). */
+  impactNotifiedAt?: string;
+  /** Dernier contact du faiseur : l'âme a répondu ou pas encore. */
+  lastContact?: { at: string; answered: boolean; text?: string; by: string; byName?: string } | null;
+  /** Dernière invitation au culte envoyée (date). */
+  lastInvite?: string;
+  /** L'âme ne souhaite plus être contactée : sa volonté passe avant tout. */
+  noContact?: { at: string; by: string; byName?: string; reason?: string } | null;
+  /** Devenue faiseur de disciples. */
+  becameMaker?: boolean;
   history?: HistoryEntry[];
   createdAt?: Timestamp;
   createdBy?: string;
@@ -240,5 +257,8 @@ export const DEFAULT_SETTINGS: Settings = {
   exitReasons: ["Déménagement", "Injoignable", "A rejoint une autre église", "Ne souhaite plus être suivie", "En intercession", "Autre raison"],
   services: ["1er culte", "2e culte", "3e culte", "Culte EJP"],
   formations: ["Académie 101", "Académie 201", "Académie 301", "PCNC"],
+  inviteMessage: "Bonjour {prenom} ! Tu es invité(e) au culte de {jour} à {heure}, {lieu}. On sera très heureux de te voir. Que Dieu te bénisse. {faiseur}, {eglise}",
+  impactMessage: "Bonjour {pilote}, une nouvelle âme est rattachée à votre famille d'impact {fi} : {ame}, {age}, quartier {quartier}, tél. {telephone}. Merci de l'appeler avant {jour} pour l'inviter. Que Dieu vous bénisse.",
+  inviteCard: { title: "Tu es invité(e) !", subtitle: "Culte du dimanche", time: "8 h, 10 h 30 et 13 h", place: "Impact Centre Chrétien", verse: "« Venez à moi, vous tous qui êtes fatigués » Matthieu 11.28", color1: "#3F025D", color2: "#2A0140", accent: "#FE9B02" },
   difficulties: ["Problème de santé", "Difficulté financière", "Problème familial", "Doute spirituel", "Opposition de l'entourage", "Éloignement géographique", "Autre"]
 };

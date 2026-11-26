@@ -126,6 +126,13 @@ describe("séparation des campus", () => {
     await assertSucceeds(getDoc(doc(as("faux"), "families/paix")));
     await assertFails(setDoc(doc(as("faux"), "meta/superAdmins"), { ids: ["faux", "grace"] }));
   });
+  it("transfert de campus et journal", async () => {
+    await assertFails(updateDoc(doc(as("pasteurdla"), "souls/d1"), { campusId: "yde" }));
+    await assertSucceeds(updateDoc(doc(as("pp"), "souls/d1"), { campusId: "yde", familyId: "amour" }));
+    await assertSucceeds(setDoc(doc(as("pasteur"), "audit/a1"), { campusId: "yde", kind: "soul-deleted", by: "pasteur" }));
+    await assertFails(deleteDoc(doc(as("pasteur"), "audit/a1")));
+    await assertFails(setDoc(doc(as("grace"), "audit/a2"), { campusId: "yde", kind: "x", by: "grace" }));
+  });
   it("un pasteur ne nomme pas d'administrateur de l'application", async () => {
     await assertFails(updateDoc(doc(as("pasteur"), "users/grace"), { role: "master" }));
     await assertSucceeds(updateDoc(doc(as("pasteur"), "users/grace"), { role: "shepherd" }));
