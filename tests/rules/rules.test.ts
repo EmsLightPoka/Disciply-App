@@ -90,7 +90,8 @@ describe("séparation des campus", () => {
     await assertFails(setDoc(doc(as("faux"), "campuses/bfs3"), { name: "X" }));
     await assertFails(updateDoc(doc(as("faux"), "users/faux"), { campusId: "dla" }));
     await assertFails(updateDoc(doc(as("master"), "users/grace"), { role: "master" }));
-    await assertFails(setDoc(doc(as("master"), "invitations/m1"), { name: "M", email: "m@x.cm", role: "master", campusId: null, familyId: null, usedBy: null }));
+    await assertFails(setDoc(doc(as("pasteur"), "invitations/m1"), { name: "M", email: "m@x.cm", role: "master", campusId: "yde", familyId: null, usedBy: null }));
+    await assertFails(setDoc(doc(as("pp"), "meta/superAdmins"), { ids: ["faux"] }));
     // Le super admin rattache le compte à un campus comme pasteur.
     await assertSucceeds(updateDoc(doc(as("master"), "users/faux"), { role: "admin", campusId: "dla" }));
   });
@@ -117,6 +118,13 @@ describe("séparation des campus", () => {
     await assertFails(setDoc(doc(as("grace"), "impactFamilies/f2"), fi));
     await assertSucceeds(getDoc(doc(as("grace"), "impactFamilies/f1")));
     await assertFails(getDoc(doc(as("pasteurdla"), "impactFamilies/f1")));
+  });
+  it("le premier compte ajoute un autre super admin", async () => {
+    await assertSucceeds(setDoc(doc(as("master"), "invitations/m2"), { name: "M", email: "m@x.cm", role: "master", campusId: "yde", familyId: null, usedBy: null }));
+    await assertFails(getDoc(doc(as("faux"), "families/paix")));
+    await assertSucceeds(setDoc(doc(as("master"), "meta/superAdmins"), { ids: ["faux"] }));
+    await assertSucceeds(getDoc(doc(as("faux"), "families/paix")));
+    await assertFails(setDoc(doc(as("faux"), "meta/superAdmins"), { ids: ["faux", "grace"] }));
   });
   it("un pasteur ne nomme pas d'administrateur de l'application", async () => {
     await assertFails(updateDoc(doc(as("pasteur"), "users/grace"), { role: "master" }));

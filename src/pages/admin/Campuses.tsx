@@ -12,7 +12,7 @@ import { IPlus } from "../../components/Icons";
 
 /** Administrateur de l'application : liste des campus, création, et choix du campus sur lequel travailler. */
 export default function Campuses() {
-  const { campuses, campusId, profile } = useSession();
+  const { campuses, campusId, profile, isFirst } = useSession();
   const toast = useToast();
   const nav = useNavigate();
   const [open, setOpen] = useState(false);
@@ -34,8 +34,9 @@ export default function Campuses() {
           {c.id === campusId && <span className="chip ok">Campus actuel</span>}
         </button>))}
         {campuses.length === 0 && <div className="empty">Aucun campus.</div>}</div>
+      {isFirst && <Supers />}
       {profile?.role === "master" && <Pastors />}
-      {profile?.role === "master" && <ToFix />}
+      {isFirst && <ToFix />}
       <p className="small">Pour donner un leader à un campus : choisis le campus, puis Ouvriers, Ajouter, rôle Leader du campus. Le super admin peut aussi nommer le Pasteur principal, qui voit tous les campus.</p>
       {open && <Sheet title="Nouveau campus" onClose={() => setOpen(false)}>
         <div className="field"><label htmlFor="cn">Nom</label><input id="cn" value={name} onChange={e => setName(e.target.value)} placeholder="Ex. ICC Douala" /></div>
@@ -51,7 +52,8 @@ function ToFix() {
   const { campuses, profile } = useSession();
   const toast = useToast();
   const q = useQuery<UserProfile>(query(collection(db, "users"), where("role", "==", "master")), [profile?.id]);
-  const list = q.data.filter(u => u.id !== profile?.id);
+  const { superIds } = useSession();
+  const list = q.data.filter(u => u.id !== profile?.id && !superIds.includes(u.id));
   const [pick, setPick] = useState<Record<string, string>>({});
   if (!list.length) return null;
   return <>
@@ -80,6 +82,23 @@ function Pastors() {
       {q.data.length === 0 && <div className="empty">Pas encore de pasteur principal.</div>}</div>
     <div className="btnrow">{campusId
       ? <Link className="btn primary" to="/equipe?inviter=1&role=pastor"><IPlus />Créer le compte du pasteur principal</Link>
+      : <span className="small">Choisis d'abord un campus ci-dessus.</span>}</div>
+  </>;
+}
+
+/** Premier compte : les autres super admins (vue sur tout), qu'il est seul à pouvoir créer. */
+function Supers() {
+  const { profile, campusId, superIds } = useSession();
+  const q = useQuery<UserProfile>(query(collection(db, "users"), where("role", "==", "master")), [profile?.id, superIds.join()]);
+  const list = q.data.filter(u => superIds.includes(u.id));
+  return <>
+    <div className="eyebrow">Autres super admins</div>
+    <div className="list">{list.map(u => (
+      <div className="row" key={u.id}><Avatar name={u.name} />
+        <span className="main-col"><div className="name">{u.name}</div><div className="meta">{u.email}{u.active ? "" : " · désactivé"}</div></span></div>))}
+      {list.length === 0 && <div className="empty">Aucun autre super admin.</div>}</div>
+    <div className="btnrow">{campusId
+      ? <Link className="btn ghost" to="/equipe?inviter=1&role=master"><IPlus />Créer un compte super admin</Link>
       : <span className="small">Choisis d'abord un campus ci-dessus.</span>}</div>
   </>;
 }

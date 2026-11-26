@@ -31,6 +31,9 @@ const adminNav: Item[] = [
   ["/archives", "Archives", <IArchive />, false],
   ["/reglages", "Réglages", <IGear />, false]
 ];
+// Super admin et pasteur principal : 2 onglets de chaque côté du bouton +, Programme reste dans « Plus ».
+const globalNav: Item[] = [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"],
+  ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i[0] === "/programme" ? [i[0], i[1], i[2], false] : i)];
 const NAV: Record<Role, Item[]> = {
   maker: [
     ["/aujourdhui", "Aujourd'hui", <IHome />, true],
@@ -41,8 +44,8 @@ const NAV: Record<Role, Item[]> = {
   shepherd: leaderNav,
   assistant: leaderNav.filter(i => i[0] !== "/equipe"),
   admin: adminNav,
-  master: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)],
-  pastor: [["/campus", "Tous les campus", <IGlobe />, true, "Les campus"], ...adminNav.map((i): Item => i[0] === "/eglise" ? [i[0], i[1], i[2], true, "Ce campus"] : i)]
+  master: globalNav,
+  pastor: globalNav
 };
 
 /** Tous les liens du rôle, pour la page « Plus » sur téléphone. */

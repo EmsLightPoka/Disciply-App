@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { useSearchParams } from "react-router-dom";
-import { collection, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, query, setDoc, where } from "firebase/firestore";
 import { db } from "../../lib/firebase";
 import { useQuery } from "../../lib/hooks";
 import { useSession } from "../../lib/session";
@@ -11,7 +11,7 @@ import { Avatar, Sheet, Top, copyText, frError, shareText, useToast } from "../.
 import { IPlus } from "../../components/Icons";
 
 export default function Team() {
-  const { profile, families, familyName, settings, campusId, campus } = useSession();
+  const { profile, families, familyName, settings, campusId, campus, isFirst } = useSession();
   const { workers, active, attendance } = useScope();
   const toast = useToast();
   const me = profile!;
@@ -68,7 +68,7 @@ export default function Team() {
           </button>);
       })}{list.length === 0 && <div className="empty">Personne pour l'instant. Invite un ouvrier.</div>}</div>
 
-      {showInvite && <InviteSheet initialRole={params.get("role") === "pastor" && me.role === "master" ? "pastor" : undefined} onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
+      {showInvite && <InviteSheet initialRole={params.get("role") === "pastor" && me.role === "master" ? "pastor" : params.get("role") === "master" && isFirst ? "master" : undefined} onClose={() => setShowInvite(false)} onCreated={inv => { setShowInvite(false); setCreated(inv); }} />}
       {created && (
         created.email ? <Sheet title="Compte créé" onClose={() => setCreated(null)}>
           <p className="small" style={{ marginTop: 0 }}>Le compte de {created.name} est prêt. Donne-lui son adresse e-mail et le mot de passe que tu as choisi : il peut se connecter tout de suite.</p>
@@ -88,11 +88,11 @@ export default function Team() {
 }
 
 function InviteSheet({ onClose, onCreated, initialRole }: { initialRole?: Role; onClose: () => void; onCreated: (i: { id: string; name: string; email?: string }) => void }) {
-  const { profile, families, campusId, campus } = useSession();
+  const { profile, families, campusId, campus, isFirst, superIds } = useSession();
   const toast = useToast();
   const me = profile!;
   const isAdmin = isCampusAdmin(me.role);
-  const roles: Role[] = me.role === "master" ? ["maker", "assistant", "shepherd", "admin", "pastor"] : isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
+  const roles: Role[] = me.role === "master" ? ["maker", "assistant", "shepherd", "admin", "pastor", ...(isFirst ? ["master" as Role] : [])] : isAdmin ? ["maker", "assistant", "shepherd", "admin"] : ["maker", "assistant"];
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [gender, setGender] = useState<"F" | "H" | "">("");
@@ -103,12 +103,13 @@ function InviteSheet({ onClose, onCreated, initialRole }: { initialRole?: Role; 
   const [mode, setMode] = useState<"lien" | "compte">(initialRole ? "compte" : "lien");
   const [pw, setPw] = useState("");
   const [phone, setPhone] = useState("");
-  const noFamily = role === "admin" || role === "pastor";
+  const noFamily = role === "admin" || role === "pastor" || role === "master";
 
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!noFamily && !familyId) return toast("Crée d'abord une famille dans Familles.");
     if (!gender) return toast("Indique s'il s'agit d'un homme ou d'une femme.");
+    if (role === "master" && mode !== "compte") return toast("Un compte super admin se crée directement : choisis « Créer le compte ».");
     if (mode === "compte" && pw.length < 8) return toast("Le mot de passe doit faire au moins 8 caractères.");
     setBusy(true);
     try {
@@ -119,7 +120,8 @@ function InviteSheet({ onClose, onCreated, initialRole }: { initialRole?: Role; 
       });
       if (mode === "compte") {
         const em = email.trim().toLowerCase();
-        await createAccountNow({ id, name: name.trim(), email: em, role, gender, campusId, familyId: fid, createdBy: me.id, createdByName: me.name, usedBy: null }, phone.trim(), pw);
+        const uid = await createAccountNow({ id, name: name.trim(), email: em, role, gender, campusId, familyId: fid, createdBy: me.id, createdByName: me.name, usedBy: null }, phone.trim(), pw);
+        if (role === "master" && uid) await setDoc(doc(db, "meta", "superAdmins"), { ids: [...new Set([...superIds, uid])] });
         onCreated({ id, name: name.trim(), email: em });
       } else onCreated({ id, name: name.trim() });
     } catch (x) { toast(frError(x)); } finally { setBusy(false); }

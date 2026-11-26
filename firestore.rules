@@ -14,9 +14,12 @@ service cloud.firestore {
     function role() { return me().role; }
     function myCampus() { return me().campusId; }
     function myFamily() { return me().familyId; }
-    // Le super admin est UNIQUEMENT le tout premier compte (celui de l'installation).
-    function isMaster() { return active() && role() == 'master'
+    // Super admin : le tout premier compte (installation), plus les super admins qu'il a créés lui-même (meta/superAdmins).
+    function isFirst() { return active() && role() == 'master'
       && get(/databases/$(database)/documents/meta/bootstrap).data.masterId == request.auth.uid; }
+    function isMaster() { return isFirst() || (active() && role() == 'master'
+      && exists(/databases/$(database)/documents/meta/superAdmins)
+      && request.auth.uid in get(/databases/$(database)/documents/meta/superAdmins).data.ids); }
     // Pasteur principal : les mêmes accès que le super admin, sur tous les campus.
     function isGlobal() { return isMaster() || (active() && role() == 'pastor'); }
     function isAdminOf(c) { return isGlobal() || (active() && role() == 'admin' && myCampus() == c); }
@@ -35,6 +38,12 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.masterId == request.auth.uid
         && getAfter(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'master';
+    }
+
+    // ---------- Liste des autres super admins : seul le premier compte la modifie ----------
+    match /meta/superAdmins {
+      allow get: if signedIn();
+      allow write: if isFirst() && request.resource.data.ids is list;
     }
 
     // ---------- Campus ----------
@@ -110,8 +119,7 @@ service cloud.firestore {
         && before.email.lower() == request.auth.token.email.lower()
         && before.role == data.role
         && before.campusId == data.campusId
-        && before.familyId == data.familyId
-        && data.role != 'master';
+        && before.familyId == data.familyId;
     }
 
     // ---------- Invitations ----------
@@ -120,7 +128,8 @@ service cloud.firestore {
       allow get: if true;
       allow list: if isAdminOf(resource.data.campusId)
         || (isShepherd() && resource.data.campusId == myCampus() && resource.data.familyId == myFamily());
-      allow create: if request.resource.data.usedBy == null && request.resource.data.role != 'master'
+      // Un compte super admin ne peut être préparé que par le premier compte.
+      allow create: if request.resource.data.usedBy == null && (request.resource.data.role != 'master' || isFirst())
         && (request.resource.data.role != 'pastor' || isMaster()) && (
         isGlobal()
         || (isAdminOf(request.resource.data.campusId) && request.resource.data.role in ['admin', 'shepherd', 'assistant', 'maker'])

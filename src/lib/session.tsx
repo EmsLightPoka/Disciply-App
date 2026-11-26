@@ -18,6 +18,9 @@ interface Session {
   logout: () => Promise<void>;
   /** Faux pour un ancien compte « administrateur de l'application » qui n'est pas le tout premier compte. */
   superAdminOk: boolean;
+  /** Le tout premier compte : lui seul crée d'autres super admins. */
+  isFirst: boolean;
+  superIds: string[];
 }
 
 const Ctx = createContext<Session | null>(null);
@@ -45,12 +48,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   // Le super admin est uniquement le tout premier compte (celui de l'installation).
   const [masterId, setMasterId] = useState<string | null | undefined>(undefined);
+  const [superIds, setSuperIds] = useState<string[]>([]);
   const isMasterRole = profile?.role === "master";
   useEffect(() => {
     if (!isMasterRole) return;
-    getDoc(doc(db, "meta", "bootstrap")).then(s => setMasterId(s.data()?.masterId ?? null), () => setMasterId(null));
+    Promise.all([
+      getDoc(doc(db, "meta", "superAdmins")).then(s => setSuperIds((s.data()?.ids as string[]) ?? []), () => setSuperIds([])),
+      getDoc(doc(db, "meta", "bootstrap")).then(s => s.data()?.masterId ?? null, () => null)
+    ]).then(([, id]) => setMasterId(id));
   }, [isMasterRole]);
-  const superAdminOk = !isMasterRole || masterId === profile?.id;
+  const isFirst = isMasterRole && masterId === profile?.id;
+  const superAdminOk = !isMasterRole || isFirst || superIds.includes(profile?.id ?? "");
 
   const activeId = profile?.active && superAdminOk ? profile.id : null;
   const campusId = activeId ? profile?.campusId ?? null : null;
@@ -72,13 +80,13 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<Session>(() => ({
     ready: authReady && profileReady && (!isMasterRole || masterId !== undefined),
-    superAdminOk,
+    superAdminOk, isFirst, superIds,
     user, profile, campusId, campuses, settings, families,
     campus: campuses.find(c => c.id === campusId) ?? null,
     familyName: id => families.find(f => f.id === id)?.name ?? (id ? "Famille inconnue" : "Sans famille"),
     myFamily: families.find(f => f.id === profile?.familyId) ?? null,
     logout: () => signOut(auth)
-  }), [authReady, profileReady, user, profile, campusId, campuses, settings, families, isMasterRole, masterId, superAdminOk]);
+  }), [authReady, profileReady, user, profile, campusId, campuses, settings, families, isMasterRole, masterId, superAdminOk, isFirst, superIds]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
